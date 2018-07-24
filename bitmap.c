@@ -61,3 +61,29 @@ int BitMap_get(BitMap* bmap, int start, int status){
     }
     return -1;
 }
+
+
+void BitMap_print(BitMap* bmap){
+    int i;
+    int prev_block_used = 0;
+    int block_used;
+    printf("\nBitmap representation:\n");
+    for (i=0; i < bmap->num_bits; ){
+        block_used = BitMap_get(bmap, prev_block_used ,1);
+        if (block_used == -1){
+            printf("0");
+            i++;
+        }
+        else{
+            while(prev_block_used < block_used){
+                printf("0");
+                prev_block_used++;
+                i++;
+            }
+            printf("1");
+            prev_block_used++;
+            i++;
+        }
+    }
+    printf("\nEnd of Bitmap\n");
+}

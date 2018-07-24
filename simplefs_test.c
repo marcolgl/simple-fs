@@ -23,6 +23,7 @@ int main(int agc, char** argv) {
   printf("---DiskHeader : TEST INIT \n\tnum_blocks = %d\n\tbitmap_blocks = %d\n\tbitmap_entries = %d\n\tfree_blocks = %d\n\tfirst_free_block = %d\n\n\n"
   , dh->num_blocks, dh->bitmap_blocks, dh->bitmap_entries, dh->free_blocks, dh->first_free_block);
   
+
   // TEST GET FREE BLOCK
   int free_block = DiskDriver_getFreeBlock(&dd, 1);
   printf("---DiskDriver : TEST getFreeBlock() \n\tfirst_free_block = %d \n\n\n",free_block);

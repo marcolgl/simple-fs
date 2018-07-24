@@ -55,7 +55,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks){
 	//}
 	void* mymem = mmap(NULL, SPACE_ON_DISK, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	// bitmap must be SPACE_ON_DISK(allocated) / BLOCK_SIZE(512) bits
-	int num_bits = SPACE_ON_DISK/BLOCK_SIZE;
+	int num_bits = num_blocks;
 	if (DEBUG) printf("num_bits = %d\nSPACE_ON_DISK = %d\nBLOCK_SIZE = %d\n",num_bits,SPACE_ON_DISK,BLOCK_SIZE);
 	int num_chars = num_bits/8;		// number of chars needed by the bitmap
 	if (num_chars % 8 != 0) num_chars++;
@@ -66,6 +66,7 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks){
 	BitMap bm;
 	bm.num_bits = num_bits;
 	bm.entries = entries;
+ 
 	
 	DiskHeader dh;
 	dh.num_blocks = num_bits;
@@ -90,6 +91,9 @@ void DiskDriver_init(DiskDriver* disk, const char* filename, int num_blocks){
 	disk->header = mymem;
 	disk->bitmap_data = mymem+sizeof(DiskHeader);
 	disk->fd = fd;
+
+	ret = msync(mymem, SPACE_ON_DISK, MS_ASYNC);
+	ERROR_HELPER(ret, "Error in msync, disk init");
 }
 
 // reads the block in position block_num

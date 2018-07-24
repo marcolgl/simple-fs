@@ -88,18 +88,18 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	if (ret == -1) return NULL;		// no free blocks
 	ret = SimpleFS_findFileInDir(d, filename);
 	if (ret >= 0) return NULL; 		// file already in directory
-	BlockHeader bh;
+	BlockHeader* bh;
 	bh->previous_block = -1;
 	bh->next_block = -1;
 	bh->block_in_file = 0;
-	FileControlBlock fcb;
+	FileControlBlock* fcb;
 	fcb->directory_block = d->directory;
 	fcb->block_in_disk = designed_block;
 	sprintf(fcb->name, filename);
 	fcb->size_in_bytes = 0;
 	fcb->size_in_blocks = 1;
 	fcb->is_dir = 0;
-	FirstFileBlock ffb;
+	FirstFileBlock* ffb;
 	ffb->header = bh;
 	ffb->fcb = fcb;
 	ret = DiskDriver_writeBlock(d->sfs->disk, &ffb, designed_block);
