@@ -7,9 +7,58 @@
 #define FB_DATA 500		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di un file
 
 
+
+
+
+// initializes a file system on an already made disk
+// returns a handle to the top level directory stored in the first block
+DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
+	// SimpleFS fields init
+	fs->disk = disk;
+
+	// Creates the top dir '\' and stores it in the first block available 
+	int ret, root_dir_block = disk->header->first_free_block;
+	FirstDirectoryBlock fdb;
+	BlockHeader bh;
+	bh.previous_block = -1;
+	bh.next_block = -1;
+	bh.block_in_file = 0; 
+	FileControlBlock fcb;
+	fcb.directory_block = root_dir_block;
+	fcb.block_in_disk = root_dir_block;
+	sprintf(fcb.name, "/");
+	fcb.size_in_bytes = 0;
+	fcb.size_in_blocks = 1;
+	fcb.is_dir = 1;
+
+	fdb.header = bh;
+	fdb.fcb = fcb;
+	fdb.num_entries = 0;
+	// fdb->file_blocks uninitialized, cause we have no files in dir yet
+	ret =  DiskDriver_writeBlock(disk, &fdb, root_dir_block);
+	ERROR_HELPER(ret, "Error in fs_init, writeBlock");
+
+	// DirectoryHandle init
+	DirectoryHandle* dh = malloc(sizeof(DirectoryHandle));
+	dh->sfs = fs;
+	/////// MMAP ALL FS
+	dh->dcb = disk->header + BLOCK_SIZE*root_dir_block;
+	dh->current_block = &(dh->dcb->header);
+	///////
+	dh->pos_in_dir = 0;
+	dh->pos_in_block = 0;
+	
+	// returns the root directory handle
+	return dh;
+}
+
+
+
+
+
 // returns the block in disk at which is stored the first file block 
 // returns -1 if there is no such file in directory
-int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
+/*int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 	int ret, found = 0, block_index = 0;
 	FirstFileBlock ffb1;
 	for (; block_index < dbc1->num_entries; block_index++){
@@ -24,7 +73,7 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 	if (found == 0) return -1; 	// file not found in the directory
 	return block_num;
 }
-	
+*/
 	
 
 
@@ -33,7 +82,7 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 //		è presente, altrimenti incrementa il numero dei processi da cui 
 //		il file è stato aperto
 // AGG: returns NULL if file doesn't exist in the directory
-FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename){	//TO CHECK
+/*FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename){	//TO CHECK
 	FirstDirectoryBlock* dcb1 = d->dcb;
 	int ret = SimpleFS_findFileInDir(d, filename);
 	if (ret < 0) return NULL;
@@ -46,12 +95,12 @@ FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename){	//TO CH
 	fh->curr_block = ffb1.fcb.block_in_disk;
 	return fh;
 }
-
+*/
 
 // returns the number of bytes read (moving the current pointer to pos)*/
 // returns pos on success
 // -1 on error (file too short)
-int SimpleFS_read(FileHandle* f, void* data, int size){
+/*int SimpleFS_read(FileHandle* f, void* data, int size){
 	int read_bytes = 0;
 	int ret;
 	int temp[BLOCK_SIZE];
@@ -77,12 +126,14 @@ int SimpleFS_read(FileHandle* f, void* data, int size){
 	f->pos_in_file = left;
 	return 0;
 }
-	
+
+
+*/
 	
 // creates an empty file in the directory d
 // returns null on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
-FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
+/*FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	int ret,designed_block;
 	designed_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
 	if (ret == -1) return NULL;		// no free blocks
@@ -112,13 +163,13 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	fh->curr_block = designed_block;
 	return fh;
 }
-	
+*/
 	
 	
 
 	
 	
-	
+/*
 typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstFileBlock* fcb;             // pointer to the first block of the file(read it)
@@ -136,9 +187,9 @@ typedef struct {
   int pos_in_dir;                  // absolute position of the cursor in the directory
   int pos_in_block;                // relative position of the cursor in the block
 } DirectoryHandle;
-	
+*/	
 // this is the first physical block of a directory
-typedef struct {
+/*typedef struct {
   BlockHeader header;
   FileControlBlock fcb;
   int num_entries;
@@ -147,8 +198,8 @@ typedef struct {
 		   -sizeof(FileControlBlock)
 		    -sizeof(int))/sizeof(int) ];
 } FirstDirectoryBlock;
-
+*/
 // closes a file handle (destroyes it)
 // AGG: decrementa il numero dei processi che hanno aperto il file, se 
 //		uguale a 0, elimina la entry
-int SimpleFS_close(FileHandle* f);
+//int SimpleFS_close(FileHandle* f);

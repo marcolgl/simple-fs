@@ -2,10 +2,30 @@
 #include "bitmap.h"
 
 #define BLOCK_SIZE 512
+
+
+
 // this is stored in the 1st block of the disk
+/* CHANGE ALL TO USE THESE
 typedef struct {
   int num_blocks;
-  int bitmap_blocks;   // how many blocks in the bitmap
+  int free_blocks;     // free blocks
+  int first_free_block;// first block index
+} DiskHeader; 
+
+typedef struct {
+  DiskHeader* header; // mmapped
+  BitMap* bmap;  // mmapped (bitmap)
+  int fd; // for us
+  int metadata_blocks; // how many blocks needed to store bitmap and header of disk
+} DiskDriver;
+
+*/
+
+
+typedef struct {
+  int num_blocks;
+  int bitmap_blocks;   // how many blocks in the bitmap //AGG: + DiskHeader
   int bitmap_entries;  // how many bytes are needed to store the bitmap
   
   int free_blocks;     // free blocks

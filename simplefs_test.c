@@ -55,8 +55,13 @@ int main(int agc, char** argv) {
   printf("Next free block: %d\n", DiskDriver_getFreeBlock(&dd, 0));
   */
   
-  //
-  
+  // TEST FS_INIT
+  printf("---SimpleFS : TEST FS_INIT \n");
+  SimpleFS fs; 
+  DirectoryHandle* dhandle = SimpleFS_init(&fs, &dd);
+
+
+
   
   // TEST CREATE FILE - OPEN FILE
   

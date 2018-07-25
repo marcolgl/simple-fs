@@ -21,7 +21,7 @@ HEADERS=bitmap.h\
 
 all:	$(BINS) 
 
-simplefs_test: simplefs_test.o disk_driver.o bitmap.o $(OBJS)
+simplefs_test: simplefs_test.o simplefs.o disk_driver.o bitmap.o $(OBJS)
 	$(CC) $(CCOPTS)  -o $@ $^ $(LIBS)
 
 clean:

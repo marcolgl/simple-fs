@@ -18,7 +18,7 @@ typedef struct {
   int directory_block; // first block of the parent directory
   int block_in_disk;   // repeated position of the block on the disk
   char name[128];
-  int  size_in_bytes;
+  int  size_in_bytes; // AGG: size of data excluding metadata
   int size_in_blocks;
   int is_dir;          // 0 for file, 1 for dir
 } FileControlBlock;
@@ -84,8 +84,8 @@ typedef struct {
 typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
-  FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
-  BlockHeader* current_block;      // current block in the directory
+  //FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
+  BlockHeader* current_block;      // current block in the directory 
   int pos_in_dir;                  // absolute position of the cursor in the directory
   int pos_in_block;                // relative position of the cursor in the block
 } DirectoryHandle;
