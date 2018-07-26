@@ -6,7 +6,7 @@
 #define FFB_DATA 352	// bytes per i dati nel primo blocco di un file
 #define FB_DATA 500		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di un file
 
-
+#define DEBUG 1
 
 
 
@@ -53,6 +53,59 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
 }
 
 
+// creates the inital structures, the top level directory
+// has name "/" and its control block is in the first position
+// it also clears the bitmap of occupied blocks on the disk
+// the current_directory_block is cached in the SimpleFS struct
+// and set to the top level directory
+void SimpleFS_format(SimpleFS* fs){
+	
+	// Set the DiskHeader init values 
+	DiskDriver* dd = fs->disk; 
+	dd->header->free_blocks = dd->header->num_blocks - dd->header->bitmap_blocks;
+	dd->header->first_free_block = dd->header->bitmap_blocks;
+
+	// Clear the BitMap of allocated blocks on disk
+	BitMap bm;
+	bm.num_bits = dd->header->num_blocks;
+	bm.entries = dd->bitmap_data;
+	int ret, allocated_block = 0;
+	while (allocated_block != -1){
+		allocated_block = BitMap_get(&bm, dd->header->first_free_block, 1);  // finds the first allocated block not used to store the metadata (bitmap, diskheader, etc)
+		ret = BitMap_set(&bm, allocated_block, 0);
+		ERROR_HELPER(ret, "Error in reset the bitmap, in SimpleFS_format");
+		if (DEBUG){ BitMap_print(&bm); printf("\nExpected: 111000..\n");}
+	}
+
+	// Creates the top dir '\' and stores it in the first block available 
+	int root_dir_block = dd->header->first_free_block;
+	FirstDirectoryBlock fdb;
+	BlockHeader bh;
+	bh.previous_block = -1;
+	bh.next_block = -1;
+	bh.block_in_file = 0; 
+	FileControlBlock fcb;
+	fcb.directory_block = root_dir_block;
+	fcb.block_in_disk = root_dir_block;
+	sprintf(fcb.name, "/");
+	fcb.size_in_bytes = 0;
+	fcb.size_in_blocks = 1;
+	fcb.is_dir = 1;
+
+	fdb.header = bh;
+	fdb.fcb = fcb;
+	fdb.num_entries = 0;
+	// fdb->file_blocks uninitialized, cause we have no files in dir yet
+	ret =  DiskDriver_writeBlock(dd, &fdb, root_dir_block);
+	ERROR_HELPER(ret, "Error in fs_init, writeBlock");
+
+	// Caches the current_directory_block ("\" block) in SimpleFS struct
+	// WITH ALL FS MMAPPED
+	fs->current_directory_block = dd->header + BLOCK_SIZE*root_dir_block;
+	if (DEBUG) {BitMap_print(&bm); printf("\nExpected: 111100..\n");}
+
+	return;
+}
 
 
 

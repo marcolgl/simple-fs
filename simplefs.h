@@ -69,6 +69,7 @@ typedef struct {
   
 typedef struct {
   DiskDriver* disk;
+  FirstDirectoryBlock* current_directory_block;
   // add more fields if needed
 } SimpleFS;
 
