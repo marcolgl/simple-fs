@@ -6,7 +6,7 @@
 #define FFB_DATA 352	// bytes per i dati nel primo blocco di un file
 #define FB_DATA 500		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di un file
 
-#define DEBUG 1
+#define DEBUG 0
 
 
 
@@ -70,12 +70,14 @@ void SimpleFS_format(SimpleFS* fs){
 	bm.num_bits = dd->header->num_blocks;
 	bm.entries = dd->bitmap_data;
 	int ret, allocated_block = 0;
+	if (DEBUG){ BitMap_print(&bm); printf("\nExpected: 111100..\n");}
 	while (allocated_block != -1){
 		allocated_block = BitMap_get(&bm, dd->header->first_free_block, 1);  // finds the first allocated block not used to store the metadata (bitmap, diskheader, etc)
 		ret = BitMap_set(&bm, allocated_block, 0);
 		ERROR_HELPER(ret, "Error in reset the bitmap, in SimpleFS_format");
-		if (DEBUG){ BitMap_print(&bm); printf("\nExpected: 111000..\n");}
 	}
+	if (DEBUG){ BitMap_print(&bm); printf("\nExpected: 111000..\n");}
+
 
 	// Creates the top dir '\' and stores it in the first block available 
 	int root_dir_block = dd->header->first_free_block;

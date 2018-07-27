@@ -19,16 +19,18 @@ int main(int argc, char** argv) {
   
   // note: even if we can choose which test run, most of them requires previous
   // ones for their structures. The argument only allows us to which test's outputs show
-  int i,j,num_tests = 4,
+  int i,j,num_tests = 5,
       test_init = 0,
       test_get_free_block = 0,
       test_wrrd_free_block = 0,
-      test_fs_init = 0;
+      test_fs_init = 0,
+      test_fs_format = 0;
 
   char* test_names[] = {"-test_init",
                        "-test_get_free_block",
                        "-test_wrrd_free_block",
-                       "-test_fs_init"
+                       "-test_fs_init",
+                       "-test_fs_format"
                       }; 
   if (argc > 5){
     printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n");
@@ -37,18 +39,18 @@ int main(int argc, char** argv) {
   for (i=1; i< argc; i++){
     int check = 0;
     for (j=0; j< num_tests; j++){
-      if (memcmp(argv[i], test_names[j], strlen(argv[i])) == 0){
-        printf("argv[i] = %s, test_names[j] = %s", argv[i], test_names[j]);
+      if (memcmp(argv[i], test_names[j], strlen(test_names[j])) == 0){
         if (j == 0) test_init = 1;
         if (j == 1) test_get_free_block = 1;
         if (j == 2) test_wrrd_free_block = 1;
         if (j == 3) test_fs_init = 1;
+        if (j == 4) test_fs_format = 1;
         check = 1;
         break;
       }
     }
     if (check == 0) {
-      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n");
+      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_fs_format\n");
       return -1;
     }
   }
@@ -59,9 +61,8 @@ int main(int argc, char** argv) {
         test_get_free_block = 1;
         test_wrrd_free_block = 1;
         test_fs_init = 1;
+        test_fs_format = 1;
   }
-
-  printf("init: %d, get: %d, wrrd: %d, fsinit: %d\n",test_init,test_get_free_block, test_wrrd_free_block, test_fs_init );
   // END COMMAND VALIDATION 
 
   int ret;
@@ -112,12 +113,20 @@ int main(int argc, char** argv) {
   // TEST FS_INIT
   if (test_fs_init){
     printf("---SimpleFS : TEST FS_INIT \n");
+  }
     SimpleFS fs; 
     DirectoryHandle* dhandle = SimpleFS_init(&fs, &dd);
+
+  // TEST FS_FORMAT
+  if (test_fs_format){
+    printf("---SimpleFS : TEST FS_FORMAT \n");
+    ret = DiskDriver_getFreeBlock(&dd,0);
+    printf("Next free block: %d. Expected: 4\n", ret);
+    printf("\nFormatting Filesystem, the blocks in use for data should be released. Note that 3 blocks are needed for metadata and 1 for root directory\n\n");
+    SimpleFS_format(&fs);
+    ret = DiskDriver_getFreeBlock(&dd,0);
+    printf("Next free block: %d. Expected: 4\n", ret);
   }
-
-  // TEST 
-
 
   
   // TEST CREATE FILE - OPEN FILE

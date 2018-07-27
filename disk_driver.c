@@ -134,8 +134,8 @@ int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num){
 	// if ret != block_num, the block at index block_num isn't free, so 
 	// we can't write in there. Also if ret = -1, there is a fail in 
 	// BitMap_get() so we can't write the block as well
-	printf("FFB: %d\n", DiskDriver_getFreeBlock(disk, 0));
-	printf("dd-ffb:%d, ret: %d, bnum: %d\n\n" ,disk->header->first_free_block, ret, block_num);
+	//printf("FFB: %d\n", DiskDriver_getFreeBlock(disk, 0));
+	//printf("dd-ffb:%d, ret: %d, bnum: %d\n\n" ,disk->header->first_free_block, ret, block_num);
 	if (ret != block_num || ret < 0) return -1;
 	off_t res = lseek(disk->fd, BLOCK_SIZE*block_num, SEEK_SET);
 	ERROR_HELPER(res, "Error in seek in function writeBlock");
