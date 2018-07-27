@@ -69,7 +69,7 @@ typedef struct {
   
 typedef struct {
   DiskDriver* disk;
-  FirstDirectoryBlock* current_directory_block;
+  FirstDirectoryBlock* current_directory_first_block;
   // add more fields if needed
 } SimpleFS;
 
@@ -78,7 +78,8 @@ typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstFileBlock* fcb;             // pointer to the first block of the file(read it)
   FirstDirectoryBlock* directory;  // pointer to the directory where the file is stored
-  BlockHeader* current_block;      // current block in the file
+  FileBlock* current_block;        // current block in the file, null if current is FirstFileBlock
+  int block_num;                   // AGG: block num on disk
   int pos_in_file;                 // position of the cursor
 } FileHandle;
 
@@ -86,10 +87,21 @@ typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstDirectoryBlock* dcb;        // pointer to the first block of the directory(read it)
   //FirstDirectoryBlock* directory;  // pointer to the parent directory (null if top level)
-  BlockHeader* current_block;      // current block in the directory 
-  int pos_in_dir;                  // absolute position of the cursor in the directory
+  DirectoryBlock* current_block;   // current block in the directory, null if curr_position is FirstDirBlock
+  int block_num;                   // AGG: block num on disk
+  int pos_in_dir;    //remove?              // absolute position of the cursor in the directory
   int pos_in_block;                // relative position of the cursor in the block
 } DirectoryHandle;
+
+
+// AGG:
+int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename);
+// AGG:
+void SimpleFS_printDirHandle(DirectoryHandle* d);
+// AGG:
+void SimpleFS_printFileHandle(FileHandle* f);
+
+
 
 // initializes a file system on an already made disk
 // returns a handle to the top level directory stored in the first block

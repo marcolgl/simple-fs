@@ -6,8 +6,12 @@
 #define FFB_DATA 352	// bytes per i dati nel primo blocco di un file
 #define FB_DATA 500		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di un file
 
+#define FDB_DATA 348	// bytes per i dati nel primo blocco di una directory
+#define DB_DATA 500		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di una directory
+
 #define DEBUG 0
 
+#define DEBUG_IN_DIR 0
 
 
 // initializes a file system on an already made disk
@@ -18,7 +22,7 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
 
 	// Creates the top dir '\' and stores it in the first block available 
 	int ret, root_dir_block = disk->header->first_free_block;
-	FirstDirectoryBlock fdb;
+	FirstDirectoryBlock* fdb = malloc(sizeof(FirstDirectoryBlock));
 	BlockHeader bh;
 	bh.previous_block = -1;
 	bh.next_block = -1;
@@ -27,29 +31,71 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
 	fcb.directory_block = root_dir_block;
 	fcb.block_in_disk = root_dir_block;
 	sprintf(fcb.name, "/");
+	//printf("\nNAMEDIR: %s\n", fcb.name);
 	fcb.size_in_bytes = 0;
 	fcb.size_in_blocks = 1;
 	fcb.is_dir = 1;
 
-	fdb.header = bh;
-	fdb.fcb = fcb;
-	fdb.num_entries = 0;
+	fdb->header = bh;
+	fdb->fcb = fcb;
+	fdb->num_entries = 0;
 	// fdb->file_blocks uninitialized, cause we have no files in dir yet
-	ret =  DiskDriver_writeBlock(disk, &fdb, root_dir_block);
+	ret =  DiskDriver_writeBlock(disk, fdb, root_dir_block);
 	ERROR_HELPER(ret, "Error in fs_init, writeBlock");
 
 	// DirectoryHandle init
 	DirectoryHandle* dh = malloc(sizeof(DirectoryHandle));
 	dh->sfs = fs;
-	/////// MMAP ALL FS
-	dh->dcb = disk->header + BLOCK_SIZE*root_dir_block;
-	dh->current_block = &(dh->dcb->header);
-	///////
+	dh->dcb = fdb;
+	dh->current_block = NULL;
 	dh->pos_in_dir = 0;
 	dh->pos_in_block = 0;
+	dh->block_num = root_dir_block;
 	
 	// returns the root directory handle
 	return dh;
+}
+
+// reads in the (preallocated) blocks array, the name of all files in a directory 
+int SimpleFS_readDir(char** names, DirectoryHandle* d){
+	int ret,
+		block_index = 0,
+	    file_block;
+	FirstDirectoryBlock* fdb = d->dcb;	
+	int read_entries = 0,
+	    num_entries = fdb->num_entries; 
+	FirstFileBlock ffb1;
+	
+	// Read the files' name in the first block of dir
+	for (; (block_index < FDB_DATA) && (read_entries < num_entries) ; block_index++){
+		if (DEBUG_IN_DIR) printf("\nSearching file in first block...\n");
+		file_block = fdb->file_blocks[block_index];
+		ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
+		ERROR_HELPER(ret, "Errore in read block\n");
+		if (DEBUG_IN_DIR) printf("filename read: %s\n", ffb1.fcb.name);
+		sprintf(names[read_entries], "%s",  ffb1.fcb.name);
+		read_entries++;
+	}
+
+	DirectoryBlock dblock;		// structure to contain the next directory data block read
+	int next_block = fdb->header.next_block; // next dir data block in which search the file
+	
+	while (read_entries < num_entries){
+		// Read next data block in the structure above allocated
+		ret = DiskDriver_readBlock(d->sfs->disk, &dblock, next_block);
+		ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
+			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
+			file_block = dblock.file_blocks[block_index];
+			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
+			ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+			names[read_entries] = ffb1.fcb.name;
+			read_entries++;
+		}
+		next_block = dblock.header.next_block;
+	}
+
+	return read_entries;	// returns number of file names read
 }
 
 
@@ -81,7 +127,7 @@ void SimpleFS_format(SimpleFS* fs){
 
 	// Creates the top dir '\' and stores it in the first block available 
 	int root_dir_block = dd->header->first_free_block;
-	FirstDirectoryBlock fdb;
+	FirstDirectoryBlock* fdb = malloc(sizeof(FirstDirectoryBlock));
 	BlockHeader bh;
 	bh.previous_block = -1;
 	bh.next_block = -1;
@@ -94,16 +140,15 @@ void SimpleFS_format(SimpleFS* fs){
 	fcb.size_in_blocks = 1;
 	fcb.is_dir = 1;
 
-	fdb.header = bh;
-	fdb.fcb = fcb;
-	fdb.num_entries = 0;
+	fdb->header = bh;
+	fdb->fcb = fcb;
+	fdb->num_entries = 0;
 	// fdb->file_blocks uninitialized, cause we have no files in dir yet
 	ret =  DiskDriver_writeBlock(dd, &fdb, root_dir_block);
 	ERROR_HELPER(ret, "Error in fs_init, writeBlock");
 
-	// Caches the current_directory_block ("\" block) in SimpleFS struct
-	// WITH ALL FS MMAPPED
-	fs->current_directory_block = dd->header + BLOCK_SIZE*root_dir_block;
+	// Caches the current_directory_first_block ("\" block) in SimpleFS struct
+	fs->current_directory_first_block = fdb;
 	if (DEBUG) {BitMap_print(&bm); printf("\nExpected: 111100..\n");}
 
 	return;
@@ -113,22 +158,49 @@ void SimpleFS_format(SimpleFS* fs){
 
 // returns the block in disk at which is stored the first file block 
 // returns -1 if there is no such file in directory
-/*int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
-	int ret, found = 0, block_index = 0;
+int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
+	int ret,
+	    block_index = 0,
+	    file_block;
+	FirstDirectoryBlock* fdb = d->dcb;	
+	int read_entries = 0,
+	    num_entries = fdb->num_entries; 
 	FirstFileBlock ffb1;
-	for (; block_index < dbc1->num_entries; block_index++){
-		int block_num = dcb1->file_blocks[block_index];
-		ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, block_num);
+	
+	// Search the file in the first directory block
+	for (; (block_index < FDB_DATA) && (read_entries < num_entries) ; block_index++){
+		if (DEBUG_IN_DIR) printf("\nSearching file in first block...\n");
+		file_block = fdb->file_blocks[block_index];
+		ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 		ERROR_HELPER(ret, "Errore in read block\n");
-		if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename) == 0){
-			found=1;	// file found
-			break;
-		}
+		read_entries++;
+		if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename) == 0))
+			return file_block;	// file found in directory entries
 	}
-	if (found == 0) return -1; 	// file not found in the directory
-	return block_num;
+
+	DirectoryBlock dblock;		// structure to contain the next directory data block read
+	int next_block = fdb->header.next_block; // next dir data block in which search the file
+	
+	while (read_entries < num_entries){
+		// Read next data block in the structure above allocated
+		ret = DiskDriver_readBlock(d->sfs->disk, &dblock, next_block);
+		ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+		
+		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
+			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
+			file_block = dblock.file_blocks[block_index];
+			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
+			ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+			read_entries++;
+			if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename) == 0))
+				return file_block;	// file found in directory entries
+		}
+		next_block = dblock.header.next_block;
+	}
+	
+	return -1;	// file not found
 }
-*/
+
 	
 
 
@@ -188,37 +260,97 @@ void SimpleFS_format(SimpleFS* fs){
 // creates an empty file in the directory d
 // returns null on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
-/*FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
+FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	int ret,designed_block;
-	designed_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
-	if (ret == -1) return NULL;		// no free blocks
+	
+	// Check file isn't already in dir
 	ret = SimpleFS_findFileInDir(d, filename);
 	if (ret >= 0) return NULL; 		// file already in directory
-	BlockHeader* bh;
-	bh->previous_block = -1;
-	bh->next_block = -1;
-	bh->block_in_file = 0;
-	FileControlBlock* fcb;
-	fcb->directory_block = d->directory;
-	fcb->block_in_disk = designed_block;
-	sprintf(fcb->name, filename);
-	fcb->size_in_bytes = 0;
-	fcb->size_in_blocks = 1;
-	fcb->is_dir = 0;
-	FirstFileBlock* ffb;
+
+	// Check there is a block available on disk
+	designed_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+	if (designed_block == -1) return NULL;		// no free blocks
+	
+
+	// Create new file block and allocate in disk and cache
+	ret = DiskDriver_setBlock(d->sfs->disk, designed_block, 1);
+	ERROR_HELPER(ret, "Error in set block, in create file");
+
+	FirstFileBlock* ffb = malloc(sizeof(FirstFileBlock));
+	BlockHeader bh;
+	bh.previous_block = -1;
+	bh.next_block = -1;
+	bh.block_in_file = 0;
+	FileControlBlock fcb;
+	fcb.directory_block = d->dcb->fcb.block_in_disk;
+	fcb.block_in_disk = designed_block;
+	sprintf(fcb.name, "%s", filename);
+	fcb.size_in_bytes = 0;
+	fcb.size_in_blocks = 0;
+	fcb.is_dir = 0;
+
 	ffb->header = bh;
 	ffb->fcb = fcb;
-	ret = DiskDriver_writeBlock(d->sfs->disk, &ffb, designed_block);
-	FileHandle* fh = malloc(sizeof(FileHandle));
-	fh->sfs = d->sfs;
-	fh->fcb = d->sfs->disk->header + BLOCK_SIZE*designed_block;
-	fh->directory = d->directory;
-	fh->current_block = fh->fcb;
-	fh->pos_in_file = 0;
-	fh->curr_block = designed_block;
-	return fh;
+	ret = DiskDriver_writeBlock(d->sfs->disk, ffb, designed_block);
+	ERROR_HELPER(ret, "Can't write on disk, in file creation");
+
+	// Add file on directory data	
+		// writing in data directory block
+		if (d->current_block != NULL){
+			d->current_block->file_blocks[d->pos_in_block] = designed_block;
+			d->dcb->num_entries++;
+			d->pos_in_block++;
+			// if reach last byte of data, i allocate another block
+			if (d->pos_in_block == FB_DATA){
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file++;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(ret, "Can't find a free block, in create file");
+				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
+
+			}		
+		}
+		// writing in first directory block data
+		if (d->current_block == NULL){
+			d->dcb->file_blocks[d->pos_in_block] = designed_block;
+			d->dcb->num_entries++;
+			d->pos_in_block++;
+			// if reach last byte of data, i allocate another block
+			if (d->pos_in_block == FDB_DATA){
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->current_block = malloc(sizeof(DirectoryBlock));
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file++;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(ret, "Can't find a free block, in create file");
+				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
+
+			}
+		}
+
+	// Build FileHandle
+	FileHandle* fhandle = malloc(sizeof(FileHandle));
+	fhandle->sfs = d->sfs;
+	fhandle->fcb = ffb;
+	fhandle->directory = d->dcb;
+	fhandle->current_block = NULL;
+	fhandle->block_num = designed_block;
+	fhandle->pos_in_file = 0;
+	
+	return fhandle;
 }
-*/
+
 	
 	
 
@@ -253,8 +385,75 @@ typedef struct {
 		   -sizeof(FileControlBlock)
 		    -sizeof(int))/sizeof(int) ];
 } FirstDirectoryBlock;
+
+
+DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
+	// SimpleFS fields init
+	fs->disk = disk;
+
+	// Creates the top dir '\' and stores it in the first block available 
+	int ret, root_dir_block = disk->header->first_free_block;
+	FirstDirectoryBlock fdb;
+	BlockHeader bh;
+	bh.previous_block = -1;
+	bh.next_block = -1;
+	bh.block_in_file = 0; 
+	FileControlBlock fcb;
+	fcb.directory_block = root_dir_block;
+	fcb.block_in_disk = root_dir_block;
+	sprintf(fcb.name, "/");
+	printf("\nNAMEDIR: %s\n", fcb.name);
+	fcb.size_in_bytes = 0;
+	fcb.size_in_blocks = 1;
+	fcb.is_dir = 1;
+
+	fdb.header = bh;
+	fdb.fcb = fcb;
+	fdb.num_entries = 0;
+	// fdb->file_blocks uninitialized, cause we have no files in dir yet
+	ret =  DiskDriver_writeBlock(disk, &fdb, root_dir_block);
+	ERROR_HELPER(ret, "Error in fs_init, writeBlock");
+
+	// DirectoryHandle init
+	DirectoryHandle* dh = malloc(sizeof(DirectoryHandle));
+	dh->sfs = fs;
+	/////// MMAP ALL FS
+	dh->dcb = disk->header + BLOCK_SIZE*root_dir_block;
+	dh->current_block = &(dh->dcb);
+	///////
+	dh->pos_in_dir = 0;
+	dh->pos_in_block = 0;
+	
+	printf("\nNAMEDIR2: %s\n", dh->dcb->fcb.name);
+	// returns the root directory handle
+	return dh;
+}
+
+
 */
 // closes a file handle (destroyes it)
 // AGG: decrementa il numero dei processi che hanno aperto il file, se 
 //		uguale a 0, elimina la entry
 //int SimpleFS_close(FileHandle* f);
+
+
+// Prints a DirectoryHandle 
+void SimpleFS_printDirHandle(DirectoryHandle* d){
+	printf("DirectoryHandle representation:\n");
+	//print sfs
+	//print dcb
+	//print curr_block
+	printf("\tblock_num: %d\n", d->block_num);
+	printf("\tpos_in_dir: %d\n", d->pos_in_dir);
+	printf("\tpos_in_block: %d\n", d->pos_in_block);
+}
+
+void SimpleFS_printFileHandle(FileHandle* f){
+	printf("FileHandle representation:\n");
+	//print sfs
+	//print fcb
+	//print directory
+	//print current_block
+	printf("\tblock_num: %d\n", f->block_num);
+	printf("\tpos_in_file: %d\n", f->pos_in_file);
+}

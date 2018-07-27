@@ -67,5 +67,9 @@ int DiskDriver_freeBlock(DiskDriver* disk, int block_num);
 // returns the first free blockin the disk from position (checking the bitmap)
 int DiskDriver_getFreeBlock(DiskDriver* disk, int start);
 
+// AGG: set a block as used
+int DiskDriver_setBlock(DiskDriver* disk, int pos, int status);
+
+
 // writes the data (flushing the mmaps)
 int DiskDriver_flush(DiskDriver* disk);

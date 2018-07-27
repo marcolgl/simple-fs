@@ -130,13 +130,13 @@ int DiskDriver_writeBlock(DiskDriver* disk, void* src, int block_num){
 	BitMap bm;
 	bm.num_bits = disk->header->num_blocks;
 	bm.entries = disk->bitmap_data;
-	int ret = BitMap_get(&bm, block_num, 0);
+	/*int ret = BitMap_get(&bm, block_num, 0);*/int ret;
 	// if ret != block_num, the block at index block_num isn't free, so 
 	// we can't write in there. Also if ret = -1, there is a fail in 
 	// BitMap_get() so we can't write the block as well
 	//printf("FFB: %d\n", DiskDriver_getFreeBlock(disk, 0));
 	//printf("dd-ffb:%d, ret: %d, bnum: %d\n\n" ,disk->header->first_free_block, ret, block_num);
-	if (ret != block_num || ret < 0) return -1;
+	/*if (ret != block_num || ret < 0) return -1;*/
 	off_t res = lseek(disk->fd, BLOCK_SIZE*block_num, SEEK_SET);
 	ERROR_HELPER(res, "Error in seek in function writeBlock");
 	ssize_t written_bytes = write(disk->fd, src, BLOCK_SIZE);
@@ -180,6 +180,19 @@ int DiskDriver_getFreeBlock(DiskDriver* disk, int start){
 	ERROR_HELPER(ret, "Can't find a free block in the bitmap");
 	return ret;
 }
+
+// set a block as used
+int DiskDriver_setBlock(DiskDriver* disk, int pos, int status){
+	// recreating the structure BitMap with the data stored in the disk
+	BitMap bm;
+	bm.num_bits = disk->header->num_blocks;
+	bm.entries = disk->bitmap_data;
+	// setting the block
+	int ret = BitMap_set(&bm, pos, status);
+	ERROR_HELPER(ret, "Can't set the block in the bitmap");
+	return ret;
+}
+
 // writes the data (flushing the mmaps)
 // For mappings to files, the msync() function shall ensure that all write
 // operations are completed as defined for synchronized I/O data integrity completion
