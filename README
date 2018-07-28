@@ -1,0 +1,7 @@
+NOTE:
+- in createFile and mkDir i can save with a write operation the changes
+  on the block of the directory in which i am adding a file/dir. I could otherwise 
+  adopt a lazy approach, mantaining the changes only in main memory and
+  writing them to the disk when changing the fileHandle structure (that caches
+  in memory the changes done), so when issuing a changeDir (cd).
+  In my implementation i am currently using this second approach (lazy one).

@@ -132,13 +132,6 @@ int main(int argc, char** argv) {
     printf("Next free block: %d. Expected: 4\n", ret);
   }
 
-
-  // TEST FIND FILE IN DIR
-      // note: will have to test more after adding some file in dir
-   printf("\n\n---SimpleFS : TEST FIND FILE IN DIR \n");
-   printf("Searching file not in dir:\n");
-   ret = SimpleFS_findFileInDir(dhandle, "notindir"); 
-   printf("File trovato? %d. Expected: -1\n", ret);
   
   // TEST CREATE NEW FILE 
   printf("\n\n---SimpleFS : TEST CREATE NEW FILE IN DIR \n");
@@ -168,7 +161,7 @@ int main(int argc, char** argv) {
   printf("\n\n---SimpleFS : TEST MKDIR\n");
   printf("Creating a dir named: 'newdir'\n");
   ret = SimpleFS_mkDir(dhandle, "newdir");
-  printf("Directory created? %d. Expected 1\n", ret);
+  printf("Directory created? %d. Expected 0 (success)\n", ret);
   // free the structure
   for (i=0; i < ret; i++){
     free(names[i]);
@@ -180,12 +173,63 @@ int main(int argc, char** argv) {
   }
   printf("Expected '/' to contain 'temp', 'proj' and 'newdir'.\n");
   printf("End of test MKDIR\n\n");
+
+
+
+  // TEST FIND FILE-DIR IN DIR 
+    // note: will have to test more after adding some file in dir
+  printf("\n\n---SimpleFS : TEST FIND FILE-DIR IN DIR \n");
+  printf("Searching file not in dir:\n");
+  ret = SimpleFS_findFileInDir(dhandle, "notindir"); 
+  printf("File trovato? %d. Expected: -1\n", ret);
+  ret = SimpleFS_findFileInDir(dhandle, "temp");
+  printf("File trovato? %d. Expected: pos integer\n", ret);
+  ret = SimpleFS_findFileInDir(dhandle, "proj");
+  printf("File trovato? %d. Expected: pos integer\n", ret);
+  ret = SimpleFS_findDirInDir(dhandle, "newdir");
+  printf("File trovato? %d. Expected: pos integer\n", ret);
+
   
+  // TEST CHANGE DIR
+  printf("\n\n---SimpleFS : TEST CHANGE DIR\n");
+  printf("Change directory, moving from '/' to 'newdir':\n");
+  SimpleFS_printDirHandle(dhandle);
+  printf("block_num expected: 4\n");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  
+  FirstDirectoryBlock fdbtemp;
+  DiskDriver_readBlock(&dd, &fdbtemp, 3);
+  SimpleFS_printFirstDirBlock(&fdbtemp);
+
+  SimpleFS_changeDir(dhandle, "newdir");
+  SimpleFS_printDirHandle(dhandle);
+  printf("block_num expected: \n");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+
 
   // TEST PRINT TREE
+  
   printf("\n\n---SimpleFS : TEST PRINT TREE\n");
-  printf("Printing tree with root '/' dir:\n");
+  SimpleFS_createFile(dhandle, "stuff");
+  SimpleFS_createFile(dhandle, "void.txt");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  SimpleFS_changeDir(dhandle, "..");
+  SimpleFS_printDirHandle(dhandle);
+  printf("entries_dir: %d\n", dhandle->dcb->num_entries);
+  printf("Printing tree with root '/' dir:\n");  
   printTree(dhandle);
+  for (i=0; i < ret; i++){
+    free(names[i]);
+    names[i] = malloc(sizeof(char)*128);
+  }
+  ret = SimpleFS_readDir(names, dhandle);
+  for (i=0; i < 3; i++){
+    printf("\tfile-dir %d: %s\n", i, names[i]);
+  }
+  printf("CONTENT: %d\n", dhandle->dcb->file_blocks[0]);
+  ret = SimpleFS_findFileInDir(dhandle, "proj");
+  printf("File trovato? %d. Expected: pos integer\n", ret);
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
   
-  
+
 }
