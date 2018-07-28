@@ -237,7 +237,11 @@ int main(int argc, char** argv) {
   SimpleFS_createFile(dhandle, "index.txt");
   SimpleFS_mkDir(dhandle, "newdir2");
   SimpleFS_changeDir(dhandle, "newdir2");
-  SimpleFS_mkDir(dhandle, "music-sheets.txt");
+  SimpleFS_createFile(dhandle,"proj");
+  SimpleFS_mkDir(dhandle, "newdir3");
+  SimpleFS_changeDir(dhandle, "newdir3");
+  SimpleFS_createFile(dhandle, "music-sheets.txt");
+  SimpleFS_changeDir(dhandle, "..");
   SimpleFS_changeDir(dhandle, "..");
   printTree(dhandle);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
