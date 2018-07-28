@@ -160,12 +160,26 @@ int main(int argc, char** argv) {
   for (i=0; i < ret; i++){
     printf("\tfile %d: %s\n", i, names[i]);
   }
-  printf("Expected '/' to contain 'temp' and 'proj'.");
-  printf("\nEnd of TEST READ DIR\n\n");
+  printf("Expected '/' to contain 'temp' and 'proj'.\n");
+  printf("End of TEST READ DIR\n\n");
 
 
-  // TEST CREATE FILE - OPEN FILE
-  
+  // TEST MKDIR
+  printf("\n\n---SimpleFS : TEST MKDIR\n");
+  printf("Creating a dir named: 'newdir'\n");
+  ret = SimpleFS_mkDir(dhandle, "newdir");
+  printf("Directory created? %d. Expected 1\n", ret);
+  // free the structure
+  for (i=0; i < ret; i++){
+    free(names[i]);
+    names[i] = malloc(sizeof(char)*128);
+  }
+  ret = SimpleFS_readDir(names, dhandle);
+  for (i=0; i < ret; i++){
+    printf("\tfile-dir %d: %s\n", i, names[i]);
+  }
+  printf("Expected '/' to contain 'temp', 'proj' and 'newdir'.\n");
+  printf("End of test MKDIR\n\n");
   
   
   

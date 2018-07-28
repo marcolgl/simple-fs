@@ -354,6 +354,91 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 }
 
 
+// creates a new directory in the current one (NO: stored in fs->current_directory_block)
+// 0 on success
+// -1 on error
+int SimpleFS_mkDir(DirectoryHandle* d, char* dirname){
+	int ret,designed_block;
+	
+	// Check new dir isn't already in dir
+	ret = SimpleFS_findFileInDir(d, dirname);
+	if (ret >= 0) return -1; 		// file already in directory
+
+	// Check there is a block available on disk
+	designed_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+	if (designed_block == -1) return -1;		// no free blocks
+
+	// Create new dir block and allocate in disk and cache
+	ret = DiskDriver_setBlock(d->sfs->disk, designed_block, 1);
+	ERROR_HELPER(ret, "Error in set block, in create file");
+
+	FirstDirectoryBlock* fdb = malloc(sizeof(FirstDirectoryBlock));
+	BlockHeader bh;
+	bh.previous_block = -1;
+	bh.next_block = -1;
+	bh.block_in_file = 0;
+	FileControlBlock fcb;
+	fcb.directory_block = d->dcb->fcb.block_in_disk;
+	fcb.block_in_disk = designed_block;
+	sprintf(fcb.name, "%s", dirname);
+	fcb.size_in_bytes = 0;
+	fcb.size_in_blocks = 0;
+	fcb.is_dir = 1;
+
+	fdb->header = bh;
+	fdb->fcb = fcb;
+	ret = DiskDriver_writeBlock(d->sfs->disk, fdb, designed_block);
+	ERROR_HELPER(ret, "Can't write on disk, in file creation");
+
+	// Add new dir on directory data	
+		// writing in data directory block
+		if (d->current_block != NULL){
+			d->current_block->file_blocks[d->pos_in_block] = designed_block;
+			d->dcb->num_entries++;
+			d->pos_in_block++;
+			// if reach last byte of data, i allocate another block
+			if (d->pos_in_block == FB_DATA){
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file++;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(ret, "Can't find a free block, in create file");
+				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
+
+			}		
+		}
+		// writing in first directory block data
+		if (d->current_block == NULL){
+			d->dcb->file_blocks[d->pos_in_block] = designed_block;
+			d->dcb->num_entries++;
+			d->pos_in_block++;
+			// if reach last byte of data, i allocate another block
+			if (d->pos_in_block == FDB_DATA){
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->current_block = malloc(sizeof(DirectoryBlock));
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file++;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(ret, "Can't find a free block, in create file");
+				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
+
+			}
+		}
+
+	return 0;
+}
+
+
 // Prints a DirectoryHandle 
 void SimpleFS_printDirHandle(DirectoryHandle* d){
 	printf("DirectoryHandle representation:\n");
