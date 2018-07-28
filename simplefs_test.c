@@ -181,6 +181,11 @@ int main(int argc, char** argv) {
   printf("Expected '/' to contain 'temp', 'proj' and 'newdir'.\n");
   printf("End of test MKDIR\n\n");
   
+
+  // TEST PRINT TREE
+  printf("\n\n---SimpleFS : TEST PRINT TREE\n");
+  printf("Printing tree with root '/' dir:\n");
+  printTree(dhandle);
   
   
 }

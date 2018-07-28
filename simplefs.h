@@ -100,6 +100,8 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename);
 void SimpleFS_printDirHandle(DirectoryHandle* d);
 // AGG:
 void SimpleFS_printFileHandle(FileHandle* f);
+// AGG: Given a DirectoryHandle, prints recursively his content (including subdirectories content)
+void printTree(DirectoryHandle* d);
 
 
 

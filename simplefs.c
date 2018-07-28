@@ -90,13 +90,75 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d){
 			file_block = dblock.file_blocks[block_index];
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
-			names[read_entries] = ffb1.fcb.name;
+			sprintf(names[read_entries], "%s",  ffb1.fcb.name);
 			read_entries++;
 		}
 		next_block = dblock.header.next_block;
 	}
 
 	return read_entries;	// returns number of file names read
+}
+
+
+// Given a DirectoryHandle, prints recursively his content (including subdirectories content)
+void printTreeAux(DiskDriver* disk, FirstDirectoryBlock* fdbInit, int layer){
+
+	int ret,i,
+		block_index = 0,
+	    file_block;
+	FirstDirectoryBlock* fdb = fdbInit;	
+	int read_entries = 0,
+	    num_entries = fdb->num_entries; 
+	FirstFileBlock ffb1;
+	
+	// Read the files' name in the first block of dir
+	for (; (block_index < FDB_DATA) && (read_entries < num_entries) ; block_index++){
+		if (DEBUG_IN_DIR) printf("\nSearching file in first block...\n");
+		file_block = fdb->file_blocks[block_index];
+		ret = DiskDriver_readBlock(disk, &ffb1, file_block);
+		ERROR_HELPER(ret, "Errore in read block\n");
+		if (DEBUG_IN_DIR) printf("filename read: %s\n", ffb1.fcb.name);
+		// Print the file
+		for (i=0; i<layer; i++) printf("-");
+		printf("%s\n", ffb1.fcb.name);
+		// Recursively print if it is a dir
+		if (ffb1.fcb.is_dir == 1)
+			printTreeAux(disk, (FirstDirectoryBlock*) &ffb1, layer++);
+		read_entries++;
+	}
+
+	DirectoryBlock dblock;		// structure to contain the next directory data block read
+	int next_block = fdb->header.next_block; // next dir data block in which search the file
+	
+	// Read the files' name in the subsequent dir blocks (not in first dir block)
+	while (read_entries < num_entries){
+		// Read next data block in the structure above allocated
+		ret = DiskDriver_readBlock(disk, &dblock, next_block);
+		ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
+			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
+			file_block = dblock.file_blocks[block_index];
+			ret = DiskDriver_readBlock(disk, &ffb1, file_block);
+			ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+			// Print the file
+			for (i=0; i<layer; i++) printf("-");
+			printf("%s\n", ffb1.fcb.name);
+			// Recursively print if it is a dir
+			if (ffb1.fcb.is_dir == 1)
+				printTreeAux(disk, (FirstDirectoryBlock*) &ffb1, layer++);
+			read_entries++;
+		}
+		next_block = dblock.header.next_block;
+	}
+
+	return;
+
+}
+
+// AGG: Given a DirectoryHandle, prints recursively his content (including subdirectories content)
+void printTree(DirectoryHandle* d){
+	printf("%s\n", d->dcb->fcb.name);
+	printTreeAux(d->sfs->disk, d->dcb, 1);
 }
 
 
