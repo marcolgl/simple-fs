@@ -226,10 +226,20 @@ int main(int argc, char** argv) {
   for (i=0; i < 3; i++){
     printf("\tfile-dir %d: %s\n", i, names[i]);
   }
-  printf("CONTENT: %d\n", dhandle->dcb->file_blocks[0]);
+
   ret = SimpleFS_findFileInDir(dhandle, "proj");
   printf("File trovato? %d. Expected: pos integer\n", ret);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
   
+  printTree(dhandle);
+  SimpleFS_printFirstDirBlock(dhandle->dcb);;
+
+  SimpleFS_createFile(dhandle, "index.txt");
+  SimpleFS_mkDir(dhandle, "newdir2");
+  SimpleFS_changeDir(dhandle, "newdir2");
+  SimpleFS_mkDir(dhandle, "music-sheets.txt");
+  SimpleFS_changeDir(dhandle, "..");
+  printTree(dhandle);
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
 
 }

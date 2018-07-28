@@ -224,17 +224,14 @@ void printTree(DirectoryHandle* d){
 // it does side effect on the provided handle
 int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 	int ret;
+	
 	// Save the in memory copy of the directory block, it was only cached til now
-	//////////BIGPROOF
 	if (d->current_block != NULL){
 		ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
 	}
 	else{
 		ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
 	}
-	printf("CHECKOUT PLEASE\n\n");
-	SimpleFS_printFirstDirBlock(d->dcb);
-	//////////ENDBIGPROOF
 	
 	// Case: ".." as dirname
 	if (memcmp(dirname, "..", strlen(dirname)) == 0){
@@ -243,14 +240,36 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 		FirstDirectoryBlock fdb1;
 		ret = DiskDriver_readBlock(d->sfs->disk, &fdb1, d->dcb->fcb.directory_block);
 		ERROR_HELPER(ret, "Error in read the block, in change dir");
-		SimpleFS_printFirstDirBlock(&fdb1);
-		// Modify dir handle
-		d->block_num = d->dcb->fcb.directory_block;
-		//*(d->dcb) = fdb1;	// CHECK THIS, MAYBE MEMSET IS NEEDED
-		memmove(d->dcb, &fdb1, sizeof(FirstDirectoryBlock));
-		d->current_block = NULL;
-		d->pos_in_dir = 0;
-		d->pos_in_block = 0; 
+		
+		// if the parent dir has only 1 block
+		if (fdb1.header.next_block == -1){
+			d->block_num = d->dcb->fcb.directory_block;
+			//*(d->dcb) = fdb1;	// CHECK THIS, MAYBE MEMSET IS NEEDED
+			memmove(d->dcb, &fdb1, sizeof(FirstDirectoryBlock));
+			d->current_block = NULL;
+			d->pos_in_dir = 0;
+			d->pos_in_block = fdb1.num_entries; 
+		}
+		else{
+			int next_block_to_read = fdb1.header.next_block, last_block_ind = fdb1.header.next_block;
+			DirectoryBlock* db1 = malloc(sizeof(DirectoryBlock)); 
+			// if parent dir has more than 1 block i search the last one browsing the list
+			while (next_block_to_read != -1){
+				ret = DiskDriver_readBlock(d->sfs->disk, db1, db1->header.next_block);
+				ERROR_HELPER(ret, "Error in read the block, in change dir");
+				if (db1->header.next_block != -1) last_block_ind = db1->header.next_block;
+				next_block_to_read = db1->header.next_block;
+			}
+			SimpleFS_printFirstDirBlock(&fdb1);
+			// Modify dir handle
+			d->block_num =last_block_ind;
+			//*(d->dcb) = fdb1;	// CHECK THIS, MAYBE MEMSET IS NEEDED
+			memmove(d->dcb, &fdb1, sizeof(FirstDirectoryBlock));
+			if (d->current_block != NULL) free(d->current_block);
+			d->current_block = db1;
+			d->pos_in_dir = 0;
+			d->pos_in_block = (fdb1.num_entries-FDB_DATA)% DB_DATA; 
+		}
 		return 0;
 	}
 
@@ -303,7 +322,6 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 		ERROR_HELPER(ret, "Errore in read block\n");
 		read_entries++;
 		if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename)) == 0){
-			printf("FILE FOUND: %d\n", file_block);
 			return file_block;	// file found in directory entries
 		}
 	}
@@ -566,13 +584,6 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname){
 	ret = DiskDriver_writeBlock(d->sfs->disk, fdb, designed_block);
 	ERROR_HELPER(ret, "Can't write on disk, in file creation");
 
-	//////////BIGPROOF
-//	FirstDirectoryBlock fdblocco;
-//	ret = DiskDriver_readBlock(d->sfs->disk, &fdblocco, designed_block);
-//	printf("CHECKOUT PLEASE\n\n");
-//	SimpleFS_printFirstDirBlock(&fdblocco);
-	//////////ENDBIGPROOF
-
 	// Add new dir on directory data	
 		// writing in data directory block
 		if (d->current_block != NULL){
@@ -597,7 +608,6 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname){
 		}
 		// writing in first directory block data
 		if (d->current_block == NULL){
-			printf("############### I HOPE YOU ARE SEING THIS\n\n");
 			d->dcb->file_blocks[d->pos_in_block] = designed_block;
 			d->dcb->num_entries++;
 			d->pos_in_block++;
