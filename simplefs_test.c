@@ -144,8 +144,10 @@ int main(int argc, char** argv) {
   printf("\n\n---SimpleFS : TEST CREATE NEW FILE IN DIR \n");
   printf("Add a file 'temp' in '/' directory\n");
   FileHandle* fhandle1 = SimpleFS_createFile(dhandle, "temp");
-  printf("Add a file 'proj' in '/' direcotry\n");
+  printf("Add a file 'proj' in '/' directory\n");
   FileHandle* fhandle2 = SimpleFS_createFile(dhandle, "proj");
+  printf("Add a file 'proj' in '/' again. It shouldn't be added cause already exists\n");
+  SimpleFS_createFile(dhandle, "proj");
   SimpleFS_printFileHandle(fhandle1);
   SimpleFS_printFileHandle(fhandle2);
 
