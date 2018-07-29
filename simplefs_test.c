@@ -272,4 +272,18 @@ if (test_print_tree){
   SimpleFS_printFileBlock(fh->current_block);
   SimpleFS_close(fh);
 
+
+  // TEST FILE READ
+
+  char read_buff[2048];
+  memset(read_buff, 0, sizeof(read_buff));
+  char read_buff2[2048];
+  fh = SimpleFS_openFile(dhandle, "temp");
+  SimpleFS_read(fh, read_buff, 440);
+  printf("READ FROM FILE TEMP:\n%s\n", read_buff);
+  SimpleFS_printFileHandle(fh);
+  //SimpleFS_read(fh, read_buff+40, 50);
+  //printf("READ FROM FILE TEMP:\n%s\n", read_buff);
+  //SimpleFS_printFileHandle(fh);
+  SimpleFS_close(fh);
 }

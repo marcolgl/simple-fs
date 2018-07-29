@@ -12,7 +12,7 @@
 #define DEBUG 0
 
 #define DEBUG_IN_DIR 0
-
+#define DEBUG_READ 1
 
 // initializes a file system on an already made disk
 // returns a handle to the top level directory stored in the first block
@@ -434,6 +434,12 @@ int min(int a, int b){
 	return b;
 }
 
+// this is needed in read file, to initialize the right value to readable var
+int take_dim(int a){
+	if (a == 0) return FB_DATA;
+	else return a;
+}
+
 // writes in the file, at current position for size bytes stored in data
 // overwriting and allocating new space if necessary
 // returns the number of bytes written
@@ -475,6 +481,19 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 		int new_block = DiskDriver_getFreeBlock(f->sfs->disk, 0);
 		ERROR_HELPER(new_block, "Error in get free block in write");
 		
+		// UPDATE HEADER IN FirstFileBlock. Must set next block as new_block
+			// Save the block on which i have just written on disk
+			if (f->current_block == NULL){
+				f->fcb->header.next_block = new_block;
+				ret = DiskDriver_writeBlock(f->sfs->disk, f->fcb, f->block_num);
+				ERROR_HELPER(ret, "Error in write block in write op");
+			}
+			else{
+				f->current_block->header.next_block = new_block;
+				ret = DiskDriver_writeBlock(f->sfs->disk, f->current_block, f->block_num);
+				ERROR_HELPER(ret, "Error in write block in write op");
+			}
+
 		// Allocate new block
 		FileBlock* fb = malloc(sizeof(FileBlock));
 		BlockHeader bh;
@@ -501,8 +520,78 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 		ERROR_HELPER(ret, "Error in write block in write op");
 	}
 
-	return 0;
+	return written_bytes;
 }
+
+// read from current position size bytes and store them in data, an already allocated array,
+// returns the number of bytes read
+int SimpleFS_read(FileHandle* f, void* data, int size){
+	int ret, read_bytes = 0;
+	int reading_size;
+	int file_total_bytes = f->fcb->fcb.size_in_bytes;
+	int space_readable_in_block;
+
+	// Case we are in first file block
+	if (f->current_block == NULL){
+		space_readable_in_block = min(file_total_bytes - f->pos_in_file, FFB_DATA - f->pos_in_file);
+		reading_size = min(space_readable_in_block, size - read_bytes);
+		memcpy(data+read_bytes, f->fcb->data + f->pos_in_file, reading_size);
+		read_bytes += reading_size;
+		f->pos_in_file += reading_size;
+		printf("\nJIMBO\n");
+	}
+
+	// Case we are in a generic block (not in the first)
+	if (f->current_block != NULL){
+		// Calculate the right space available to read
+		if (f->current_block->header.next_block == -1)
+			space_readable_in_block = take_dim((file_total_bytes - FFB_DATA)% FB_DATA) - f->pos_in_file;
+		else
+			space_readable_in_block = FB_DATA - f->pos_in_file;
+		reading_size = min(space_readable_in_block, size - read_bytes);
+		memcpy(data+read_bytes, f->current_block->data + f->pos_in_file, reading_size);
+		read_bytes += reading_size;
+		f->pos_in_file += reading_size;
+		printf("Cant see this\n");
+	}
+
+	// Set next block to read
+	int next_block_to_read;
+	if (f->current_block == NULL)
+		next_block_to_read = f->fcb->header.next_block;
+	else next_block_to_read = f->current_block->header.next_block; 
+
+	// Keep reading blocks until i have read size bytes or end of file
+	while( read_bytes < size && next_block_to_read != -1 ){
+		printf("IL PROBLEMA E' QUI IN MEZZO\n");
+		// Find next block to read index
+		if (f->current_block == NULL){
+			f->current_block = malloc(sizeof(FileBlock));	// if curr block was null i need to allocate the space needed
+			next_block_to_read = f->fcb->header.next_block;
+		}
+		else next_block_to_read = f->current_block->header.next_block; 
+		// Move next block from disk in memory and update filehandle fields
+		ret = DiskDriver_readBlock(f->sfs->disk, f->current_block, next_block_to_read);
+		ERROR_HELPER(ret, "Error in read next block, in read op");
+		
+		// Update FileHandle fields
+		f->block_num = next_block_to_read;
+		f->pos_in_file = 0;
+
+		// Read block loaded in memory
+		if (f->current_block->header.next_block == -1)
+			space_readable_in_block = take_dim((file_total_bytes - FFB_DATA)% FB_DATA) - f->pos_in_file;
+		else
+			space_readable_in_block = FB_DATA - f->pos_in_file;
+		reading_size = min(space_readable_in_block, size - read_bytes);
+		memcpy(data+read_bytes, f->current_block->data + f->pos_in_file, reading_size);
+		read_bytes += reading_size;
+		f->pos_in_file += reading_size;
+	}
+
+	return read_bytes;
+}
+
 
 // returns the number of bytes read (moving the current pointer to pos)*/
 // returns pos on success
