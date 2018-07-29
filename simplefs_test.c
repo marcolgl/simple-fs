@@ -263,5 +263,13 @@ if (test_print_tree){
 
   // TEST FILE WRITE
 
-  
+  char buff[512];
+  memset(buff, 'V', sizeof(buff));
+  fh = SimpleFS_openFile(dhandle, "temp");
+  SimpleFS_write(fh, buff, sizeof(buff));
+    SimpleFS_printFileHandle(fh);
+  SimpleFS_printFirstFileBlock(fh->fcb);
+  SimpleFS_printFileBlock(fh->current_block);
+  SimpleFS_close(fh);
+
 }

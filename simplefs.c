@@ -429,6 +429,80 @@ int SimpleFS_close(FileHandle* f){
 	return 0;
 }
 
+int min(int a, int b){
+	if (a <= b) return a;
+	return b;
+}
+
+// writes in the file, at current position for size bytes stored in data
+// overwriting and allocating new space if necessary
+// returns the number of bytes written
+int SimpleFS_write(FileHandle* f, void* data, int size){
+	int ret, written_bytes = 0;
+	int space_av_in_block;
+	int writing_size;
+	// Case we are in first file block
+	if (f->current_block == NULL){
+		space_av_in_block = FFB_DATA - f->pos_in_file;
+		writing_size = min(space_av_in_block, size);
+		memcpy(f->fcb->data + f->pos_in_file, data, writing_size);
+		written_bytes += writing_size;
+		f->pos_in_file += writing_size;
+		f->fcb->fcb.size_in_bytes += writing_size;
+	}
+	// Case we are in a generic block (not in the first)
+	else{	
+		space_av_in_block = FB_DATA -f->pos_in_file;
+		writing_size = min(space_av_in_block, size);
+		memcpy(f->current_block->data + f->pos_in_file, data, writing_size);
+		written_bytes += writing_size;
+		f->pos_in_file += writing_size;
+		f->fcb->fcb.size_in_bytes += writing_size;
+	}
+
+	// Save the block on which i have just written on disk
+	if (f->current_block == NULL){
+		ret = DiskDriver_writeBlock(f->sfs->disk, f->fcb, f->block_num);
+		ERROR_HELPER(ret, "Error in write block in write op");
+	}
+	else{
+		ret = DiskDriver_writeBlock(f->sfs->disk, f->current_block, f->block_num);
+		ERROR_HELPER(ret, "Error in write block in write op");
+	}
+
+	while (written_bytes < size){
+		// if i am here i need to allocate another block to the file to complete the write
+		int new_block = DiskDriver_getFreeBlock(f->sfs->disk, 0);
+		ERROR_HELPER(new_block, "Error in get free block in write");
+		
+		// Allocate new block
+		FileBlock* fb = malloc(sizeof(FileBlock));
+		BlockHeader bh;
+		bh.previous_block = f->block_num;
+		bh.next_block = -1;
+		if (f->current_block == NULL) bh.block_in_file = 1;
+		else bh.block_in_file = f->current_block->header.block_in_file +1;
+		fb->header = bh;
+		// Update filehandle with current block
+		f->current_block = fb;
+		f->block_num = new_block;
+		f->pos_in_file = 0;
+
+		// Write again
+		space_av_in_block = FB_DATA - f->pos_in_file;
+		writing_size = min(space_av_in_block, size-written_bytes);
+		memcpy(f->current_block->data + f->pos_in_file, data, writing_size);
+		written_bytes += writing_size;
+		f->pos_in_file += writing_size;
+		f->fcb->fcb.size_in_bytes += writing_size;
+
+		// Save the block on which i have just written on disk
+		ret = DiskDriver_writeBlock(f->sfs->disk, f->current_block, f->block_num);
+		ERROR_HELPER(ret, "Error in write block in write op");
+	}
+
+	return 0;
+}
 
 // returns the number of bytes read (moving the current pointer to pos)*/
 // returns pos on success
@@ -672,7 +746,8 @@ void SimpleFS_printFirstDirBlock(FirstDirectoryBlock* fdb){
 	printf("-num_entries: %d\n", fdb->num_entries);
 	printf("-data: ");
 	int i = 0;
-	for (; i< fdb->num_entries; i++){
+	int datasize = min(fdb->num_entries, FDB_DATA);
+	for (; i< datasize; i++){
 		printf("|%d", fdb->file_blocks[i]);
 	}
 	printf("|\n");
@@ -684,8 +759,20 @@ void SimpleFS_printFirstFileBlock(FirstFileBlock* ffb){
 	printf("-fcb.name: %s\n", ffb->fcb.name);
 	printf("-data: ");
 	int i = 0;
-	for (; i< ffb->fcb.size_in_bytes; i++){
+	int datasize = min(ffb->fcb.size_in_bytes, FFB_DATA);
+	for (; i< datasize; i++){
 		printf("%c", ffb->data[i]);
 	}
 	printf("|\n");
+}
+
+void SimpleFS_printFileBlock(FileBlock* fb){
+	printf("FILE BLOCK:\n");
+	printf("-data: ");
+	int i = 0;
+	int datasize = FB_DATA;
+	for (; i< datasize; i++){
+		printf("%c", fb->data[i]);
+	}
+	printf("|\n"); 
 }

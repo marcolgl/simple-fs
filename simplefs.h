@@ -108,6 +108,8 @@ int SimpleFS_findDirInDir(DirectoryHandle* d, const char* dirname);
 void SimpleFS_printFirstDirBlock(FirstDirectoryBlock* fdb);
 // AGG:
 void SimpleFS_printFirstFileBlock(FirstFileBlock* ffb);
+// AGG:
+void SimpleFS_printFileBlock(FileBlock* fb);
 
 
 
