@@ -77,7 +77,7 @@ typedef struct {
 typedef struct {
   SimpleFS* sfs;                   // pointer to memory file system structure
   FirstFileBlock* fcb;             // pointer to the first block of the file(read it)
-  FirstDirectoryBlock* directory;  // pointer to the directory where the file is stored
+  //FirstDirectoryBlock* directory;  // pointer to the directory where the file is stored
   FileBlock* current_block;        // current block in the file, null if current is FirstFileBlock
   int block_num;                   // AGG: block num on disk
   int pos_in_file;                 // position of the cursor
@@ -106,6 +106,9 @@ void printTree(DirectoryHandle* d);
 int SimpleFS_findDirInDir(DirectoryHandle* d, const char* dirname);
 // AGG:
 void SimpleFS_printFirstDirBlock(FirstDirectoryBlock* fdb);
+// AGG:
+void SimpleFS_printFirstFileBlock(FirstFileBlock* ffb);
+
 
 
 

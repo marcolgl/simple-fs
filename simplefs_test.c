@@ -20,21 +20,23 @@ int main(int argc, char** argv) {
   
   // note: even if we can choose which test run, most of them requires previous
   // ones for their structures. The argument only allows us to which test's outputs show
-  int i,j,num_tests = 5,
+  int i,j,num_tests = 6,
       test_init = 0,
       test_get_free_block = 0,
       test_wrrd_free_block = 0,
       test_fs_init = 0,
-      test_fs_format = 0;
+      test_fs_format = 0,
+      test_print_tree = 0;
 
   char* test_names[] = {"-test_init",
                        "-test_get_free_block",
                        "-test_wrrd_free_block",
                        "-test_fs_init",
-                       "-test_fs_format"
+                       "-test_fs_format",
+                       "-test_print_tree"
                       }; 
-  if (argc > 5){
-    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n");
+  if (argc > 6){
+    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_print_tree\n");
     return -1;
   }
   for (i=1; i< argc; i++){
@@ -46,6 +48,7 @@ int main(int argc, char** argv) {
         if (j == 2) test_wrrd_free_block = 1;
         if (j == 3) test_fs_init = 1;
         if (j == 4) test_fs_format = 1;
+        if (j == 5) test_print_tree = 1;
         check = 1;
         break;
       }
@@ -63,6 +66,7 @@ int main(int argc, char** argv) {
         test_wrrd_free_block = 1;
         test_fs_init = 1;
         test_fs_format = 1;
+        test_print_tree = 1;
   }
   // END COMMAND VALIDATION 
 
@@ -206,9 +210,9 @@ int main(int argc, char** argv) {
   printf("block_num expected: \n");
   SimpleFS_printFirstDirBlock(dhandle->dcb);
 
-
   // TEST PRINT TREE
-  
+
+if (test_print_tree){  
   printf("\n\n---SimpleFS : TEST PRINT TREE\n");
   SimpleFS_createFile(dhandle, "stuff");
   SimpleFS_createFile(dhandle, "void.txt");
@@ -245,5 +249,19 @@ int main(int argc, char** argv) {
   SimpleFS_changeDir(dhandle, "..");
   printTree(dhandle);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
+} 
 
+  // TEST FILE OPEN - CLOSE
+
+  SimpleFS_changeDir(dhandle, "..");
+  printTree(dhandle);
+  FileHandle* fh = SimpleFS_openFile(dhandle, "temp");
+  SimpleFS_printFileHandle(fh);
+  printf("Expected block_num = 4\n");
+  SimpleFS_printFirstFileBlock(fh->fcb);
+  SimpleFS_close(fh);
+
+  // TEST FILE WRITE
+
+  
 }

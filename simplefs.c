@@ -244,7 +244,6 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 		// if the parent dir has only 1 block
 		if (fdb1.header.next_block == -1){
 			d->block_num = d->dcb->fcb.directory_block;
-			//*(d->dcb) = fdb1;	// CHECK THIS, MAYBE MEMSET IS NEEDED
 			memmove(d->dcb, &fdb1, sizeof(FirstDirectoryBlock));
 			d->current_block = NULL;
 			d->pos_in_dir = 0;
@@ -291,8 +290,8 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 
 	// Modify dir handle
 	d->block_num = dir_block;
-	*(d->dcb) = fdb;	// CHECK THIS, MAYBE MEMSET IS NEEDED
-	//memmove(d->dcb, &fdb, sizeof(FirstDirectoryBlock));
+	//(d->dcb) = fdb;	// CHECK THIS, MAYBE MEMSET IS NEEDED
+	memmove(d->dcb, &fdb, sizeof(FirstDirectoryBlock));
 	d->current_block = NULL;
 	d->pos_in_dir = 0;
 	d->pos_in_block = 0; 
@@ -400,24 +399,36 @@ int SimpleFS_findDirInDir(DirectoryHandle* d, const char* dirname){
 
 
 // opens a file in the  directory d. The file should be exisiting
-// AGG: aggiunge il file nella lista dei file aperti nel sistema se non
-//		è presente, altrimenti incrementa il numero dei processi da cui 
-//		il file è stato aperto
 // AGG: returns NULL if file doesn't exist in the directory
-/*FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename){	//TO CHECK
-	FirstDirectoryBlock* dcb1 = d->dcb;
-	int ret = SimpleFS_findFileInDir(d, filename);
-	if (ret < 0) return NULL;
+FileHandle* SimpleFS_openFile(DirectoryHandle* d, const char* filename){
+	int ret;
+	int file_block = SimpleFS_findFileInDir(d, filename);
+	if (file_block < 0) return NULL; // file not found in dir
+	
+	// Allocate a structure to save first file block in main memory
+	FirstFileBlock* ffb = malloc(sizeof(FirstFileBlock));
+	ret = DiskDriver_readBlock(d->sfs->disk, ffb, file_block);
+	ERROR_HELPER(ret, "Error in read block, in open file\n");
+
+	// Allocate the file handler and return it
 	FileHandle* fh = malloc(sizeof(FileHandle));
 	fh->sfs = d->sfs;
-	fh->fcb = d->sfs->disk->header + BLOCK_SIZE*ret;		// TO CHECK
-	fh->directory = dcb1;
-	fh->current_block = fh->fcb;
+	fh->fcb = ffb;				
+	fh->current_block = NULL;
+	fh->block_num = file_block;
 	fh->pos_in_file = 0;
-	fh->curr_block = ffb1.fcb.block_in_disk;
+
 	return fh;
 }
-*/
+
+// closes a file handle (destroyes it)
+int SimpleFS_close(FileHandle* f){
+	free(f->fcb);
+	if (f->current_block != NULL) free(f->current_block);
+	free(f);
+	return 0;
+}
+
 
 // returns the number of bytes read (moving the current pointer to pos)*/
 // returns pos on success
@@ -538,7 +549,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	FileHandle* fhandle = malloc(sizeof(FileHandle));
 	fhandle->sfs = d->sfs;
 	fhandle->fcb = ffb;
-	fhandle->directory = d->dcb;
+	//fhandle->directory = d->dcb;
 	fhandle->current_block = NULL;
 	fhandle->block_num = designed_block;
 	fhandle->pos_in_file = 0;
@@ -663,6 +674,18 @@ void SimpleFS_printFirstDirBlock(FirstDirectoryBlock* fdb){
 	int i = 0;
 	for (; i< fdb->num_entries; i++){
 		printf("|%d", fdb->file_blocks[i]);
+	}
+	printf("|\n");
+}
+
+
+void SimpleFS_printFirstFileBlock(FirstFileBlock* ffb){
+	printf("FIRST FILE BLOCK:\n");
+	printf("-fcb.name: %s\n", ffb->fcb.name);
+	printf("-data: ");
+	int i = 0;
+	for (; i< ffb->fcb.size_in_bytes; i++){
+		printf("%c", ffb->data[i]);
 	}
 	printf("|\n");
 }
