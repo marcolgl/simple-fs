@@ -298,4 +298,16 @@ if (test_print_tree){
   printf("READ STUFF: \n%s-\n", buffer);
   SimpleFS_close(fh);
 
+
+  // TEST FILE REMOVE
+
+  printf("\n\n---SimpleFS : TEST FILE REMOVE\n");
+  printf("Before removing file 'temp' from dir\n");
+  printTree(dhandle);
+  SimpleFS_remove(dhandle, "temp");
+  printf("After removing file 'temp' from dir\n");
+  printTree(dhandle);
+  printf("End test remove\n");
+  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
+  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
 }

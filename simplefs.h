@@ -164,10 +164,11 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname);
 // -1 on error
 int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
 
-// removes the file in the current directory
+// Modified: first param changed to DirectoryHandle*
+// removes the file in the directory represented by directory handle
 // returns -1 on failure 0 on success
 // if a directory, it removes recursively all contained files
-int SimpleFS_remove(SimpleFS* fs, char* filename);
+int SimpleFS_remove(DirectoryHandle* d, char* filename);
 
 
 /*
@@ -190,5 +191,106 @@ typedef struct{
 } OpenFileTable;
 
 
-  
 
+      // this function move the last entry to the position of the entry deleted and 
+// if no more entries are on the last block, deallocate the last block from disk
+// it also update the num_entries on first dir block(dir control block)
+// PARAMS : d - DirectoryHandle
+//			entry_pos - entry position in block of the file to remove ( we need to remove the entry at this position) 
+// 			block_inf_entry_to_remove - number of the block in file of the entry to remove
+// 			file_block - block_num in disk of the file to remove
+
+/*int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_to_remove, int file_block){
+	int ret, counter;
+	DirectoryBlock db_l; 
+	DirectoryBlock db_r;
+
+	// find the block in file position of last entry (0 if in control block)
+	int last_entry_block;
+	if (d->dcb->num_entries <=  FFB_DATA){
+		last_entry_block = 0;
+	}
+	else {
+		last_entry_block = (d->dcb->num_entries - FFB_DATA)/DB_DATA +1;
+		if ((d->dcb->num_entries - FFB_DATA) % DB_DATA == 0) last_entry_block--;
+	}
+
+	// if last block is first dir block
+	if (last_entry_block == 0){
+		d->dcb->file_blocks[entry_pos] = d->dcb->file_blocks[d->dcb->num_entries-1];
+	}
+
+	// find last_pos, position in block of last entry
+	int last_pos;
+	if ( FFB_DATA +FB_DATA*last_entry_block- d->dcb->num_entries == 0)
+		last_pos = FB_DATA -1;
+	else if ( FFB_DATA +FB_DATA*last_entry_block- d->dcb->num_entries == FB_DATA)
+		last_pos = 0;
+	else
+		last_pos = FFB_DATA + FB_DATA*last_entry_block - d->dcb->num_entries;
+	//
+
+
+	int next_block = d->dcb->header.next_block;
+	// if last block is not first dir block and the file to remove entry is stored in the first dir block
+	if (last_entry_block != 0 && block_inf_entry_to_remove == 0){
+
+		// read the last block in memory
+		counter = 0;
+		while (counter < last_entry_block){
+			ret = DiskDriver_readBlock(d->sfs->disk, &db_l, next_block);
+			ERROR_HELPER(ret, "Error in read, in remove_file_from_dir\n");
+			counter++;
+			next_block = db_l.header.next_block;
+		}
+
+		d->dcb->file_blocks[entry_pos] = db_l.file_blocks[last_pos];
+		
+		// case in which we need to remove the blank block
+		if (last_pos == 0){
+			
+		}
+	}	
+
+
+	
+
+
+	// Decrease num_entries in directory
+	d->dcb->num_entries--;
+}
+*/
+
+// removes the file in the directory represented by directory handle
+// returns -1 on failure 0 on success
+// if a directory, it removes recursively all contained files
+/*int SimpleFS_remove(DirectoryHandle* d, char* filename){
+	int ret;
+	int read_entries = 0;
+	int file_block;		// here we store the block_num of the file scanned
+	FirstFileBlock ffb;
+
+	// recursively remove all files
+	if (memcmp(filename, "*", strlen(filename)) == 0){
+		printf("TODO : Remove all files\n");
+	}
+
+
+	// scanning the first directory block
+	while (read_entries < d->dcb->num_entries && read_entries < FDB_DATA){
+		file_block = d->dcb->file_blocks[read_entries];
+		ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
+		ERROR_HELPER(ret, "Error in read block in file remove\n");
+		
+		if (memcmp(ffb.fcb.name, filename, strlen(ffb.fcb.name)) == 0) 	// file found
+		remove_file_from_dir(d, read_entries, 0, file_block);
+
+	}
+
+	// scanning other blocks (not first one)
+	while (read_entries < d->dcb->num_entries){
+
+	}
+
+}
+*/
