@@ -150,7 +150,6 @@ int SimpleFS_write(FileHandle* f, void* data, int size);
 // returns the number of bytes read
 int SimpleFS_read(FileHandle* f, void* data, int size);
 
-// returns the number of bytes read (moving the current pointer to pos)*/
 // returns pos on success
 // -1 on error (file too short)
 int SimpleFS_seek(FileHandle* f, int pos);

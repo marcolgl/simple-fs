@@ -451,7 +451,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 	if (f->current_block == NULL){
 		space_av_in_block = FFB_DATA - f->pos_in_file;
 		writing_size = min(space_av_in_block, size);
-		memcpy(f->fcb->data + f->pos_in_file, data, writing_size);
+		memcpy(f->fcb->data + f->pos_in_file, data + written_bytes, writing_size);
 		written_bytes += writing_size;
 		f->pos_in_file += writing_size;
 		f->fcb->fcb.size_in_bytes += writing_size;
@@ -460,7 +460,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 	else{	
 		space_av_in_block = FB_DATA -f->pos_in_file;
 		writing_size = min(space_av_in_block, size);
-		memcpy(f->current_block->data + f->pos_in_file, data, writing_size);
+		memcpy(f->current_block->data + f->pos_in_file, data + written_bytes, writing_size);
 		written_bytes += writing_size;
 		f->pos_in_file += writing_size;
 		f->fcb->fcb.size_in_bytes += writing_size;
@@ -510,7 +510,7 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 		// Write again
 		space_av_in_block = FB_DATA - f->pos_in_file;
 		writing_size = min(space_av_in_block, size-written_bytes);
-		memcpy(f->current_block->data + f->pos_in_file, data, writing_size);
+		memcpy(f->current_block->data + f->pos_in_file, data + written_bytes , writing_size);
 		written_bytes += writing_size;
 		f->pos_in_file += writing_size;
 		f->fcb->fcb.size_in_bytes += writing_size;
@@ -538,7 +538,6 @@ int SimpleFS_read(FileHandle* f, void* data, int size){
 		memcpy(data+read_bytes, f->fcb->data + f->pos_in_file, reading_size);
 		read_bytes += reading_size;
 		f->pos_in_file += reading_size;
-		printf("\nJIMBO\n");
 	}
 
 	// Case we are in a generic block (not in the first)
@@ -552,7 +551,6 @@ int SimpleFS_read(FileHandle* f, void* data, int size){
 		memcpy(data+read_bytes, f->current_block->data + f->pos_in_file, reading_size);
 		read_bytes += reading_size;
 		f->pos_in_file += reading_size;
-		printf("Cant see this\n");
 	}
 
 	// Set next block to read
@@ -563,7 +561,6 @@ int SimpleFS_read(FileHandle* f, void* data, int size){
 
 	// Keep reading blocks until i have read size bytes or end of file
 	while( read_bytes < size && next_block_to_read != -1 ){
-		printf("IL PROBLEMA E' QUI IN MEZZO\n");
 		// Find next block to read index
 		if (f->current_block == NULL){
 			f->current_block = malloc(sizeof(FileBlock));	// if curr block was null i need to allocate the space needed
@@ -590,6 +587,52 @@ int SimpleFS_read(FileHandle* f, void* data, int size){
 	}
 
 	return read_bytes;
+}
+
+
+// Move to absolute position pos in file (from the start of the file)
+// returns pos on success
+// -1 on error (file too short)
+int SimpleFS_seek(FileHandle* f, int pos){
+	int ret, current_pos = 0;
+	int next_block = f->fcb->header.next_block;
+
+	// if file too short (pos > file_bytes)
+	if (pos > f->fcb->fcb.size_in_bytes) return -1;
+
+	// if seek in a pos in the first block
+	if (pos <= FFB_DATA){
+		f->pos_in_file = pos;
+		if (f->current_block != NULL) {
+			free(f->current_block);
+			f->current_block = NULL;
+		}
+		return pos;
+	}
+	
+	// if seek in a generic block (not first block), i have to allocate space for it in filehandle
+	FileBlock* fb = malloc(sizeof(FileBlock));
+	if (f->current_block == NULL) free(f->current_block);
+	f->current_block = fb;
+	current_pos += FFB_DATA;
+
+	// in this case i have to browse the block list until i reach the block that has the pos wanted
+	while (current_pos < pos){
+		ret = DiskDriver_readBlock(f->sfs->disk, fb, next_block);
+		ERROR_HELPER(ret, "Error in read, in file seek\n");
+		
+		SimpleFS_printFileBlock(fb);
+		// Update current position and set end condition and next block 
+		if (pos - current_pos <=  FB_DATA){
+			f->pos_in_file = pos - current_pos;
+			current_pos = pos;
+		}
+		else{
+			current_pos += FFB_DATA;
+		}
+		next_block = fb->header.next_block;
+	}
+	return pos;
 }
 
 

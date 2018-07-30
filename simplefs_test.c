@@ -253,6 +253,7 @@ if (test_print_tree){
 
   // TEST FILE OPEN - CLOSE
 
+  printf("\n\n---SimpleFS : TEST FILE OPEN - CLOSE\n");
   SimpleFS_changeDir(dhandle, "..");
   printTree(dhandle);
   FileHandle* fh = SimpleFS_openFile(dhandle, "temp");
@@ -263,18 +264,20 @@ if (test_print_tree){
 
   // TEST FILE WRITE
 
-  char buff[512];
-  memset(buff, 'V', sizeof(buff));
+  printf("\n\n---SimpleFS : TEST FILE WRITE\n");
+  char *buff = "Il cammino dell'uomo timorato e minacciato da ogni parte dalle iniquita degli esseri egoisti e dalla tirannia degli uomini malvagi, benedetto sia colui che conduce i deboli attraverso la valle delle tenebre, poiche egli e il pastore di suo fratello ed il ricercatore dei figli smarriti. E la mia vendetta calera su di loro, con grandissima malavagita e furiosissimo sdegno, du si coloro che si provanno ad ammorbare e a distruggere i miei fratelli, e tu saprai che il mio nome e quello del signore, quando faro calare la mia vendetta sopra di te.";
+  //memset(buff, 'V', strlen(buff));
   fh = SimpleFS_openFile(dhandle, "temp");
-  SimpleFS_write(fh, buff, sizeof(buff));
-    SimpleFS_printFileHandle(fh);
+  SimpleFS_write(fh, buff, strlen(buff));
+  SimpleFS_printFileHandle(fh);
   SimpleFS_printFirstFileBlock(fh->fcb);
   SimpleFS_printFileBlock(fh->current_block);
-  SimpleFS_close(fh);
+  //SimpleFS_close(fh);
 
 
   // TEST FILE READ
-
+/*
+  printf("\n\n---SimpleFS : TEST FILE READ\n");
   char read_buff[2048];
   memset(read_buff, 0, sizeof(read_buff));
   char read_buff2[2048];
@@ -285,5 +288,14 @@ if (test_print_tree){
   //SimpleFS_read(fh, read_buff+40, 50);
   //printf("READ FROM FILE TEMP:\n%s\n", read_buff);
   //SimpleFS_printFileHandle(fh);
+*/
+
+  // TEST FILE SEEK
+  printf("\n\n---SimpleFS : TEST FILE SEEK\n");
+  char buffer[2048];
+  SimpleFS_seek(fh, 400);
+  SimpleFS_read(fh, buffer, 15);
+  printf("READ STUFF: \n%s-\n", buffer);
   SimpleFS_close(fh);
+
 }
