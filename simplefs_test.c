@@ -8,6 +8,10 @@
 #define TOTAL_BLOCKS 8192
 // total space = 4194304
 
+int max(int a, int b){
+  if (a >= b) return a;
+  return b;
+}
 
 int main(int argc, char** argv) {
   /*printf("FirstBlock size %ld\n", sizeof(FirstFileBlock));
@@ -36,13 +40,13 @@ int main(int argc, char** argv) {
                        "-test_print_tree"
                       }; 
   if (argc > 6){
-    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_print_tree\n");
+    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_fs_format\n\t-test_print_tree\n");
     return -1;
   }
   for (i=1; i< argc; i++){
     int check = 0;
     for (j=0; j< num_tests; j++){
-      if (memcmp(argv[i], test_names[j], strlen(test_names[j])) == 0){
+      if (memcmp(argv[i], test_names[j], max(strlen(argv[i]), strlen(test_names[j]))) == 0){
         if (j == 0) test_init = 1;
         if (j == 1) test_get_free_block = 1;
         if (j == 2) test_wrrd_free_block = 1;
@@ -54,7 +58,7 @@ int main(int argc, char** argv) {
       }
     }
     if (check == 0) {
-      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_fs_format\n");
+      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_get_free_block\n\t-test_wrrd_free_block\n\t-test_fs_init\n\t-test_fs_format\n\t-test_print_tree\n");
       return -1;
     }
   }
@@ -134,9 +138,57 @@ int main(int argc, char** argv) {
     SimpleFS_format(&fs);
     ret = DiskDriver_getFreeBlock(&dd,0);
     printf("Next free block: %d. Expected: 4\n", ret);
+    
+    SimpleFS_printDirHandle(dhandle);
+    printf("dhandle cont: name: %s\n", dhandle->dcb->fcb.name);
+    DiskDriver_writeBlock(dhandle->sfs->disk, dhandle->dcb, dhandle->block_num);
+    ret = DiskDriver_getFreeBlock(&dd,0);
+    printf("Next free block: %d. Expected: 4\n", ret);
+    //return 1;
+  }
+
+    // TEST CREATE NEW FILE 000
+/*
+  printf("\n\n---SimpleFS : Create new file test case 000 \n");
+  printf("Add a files in '/' directory\n");
+  FileHandle* qfh1 = SimpleFS_createFile(dhandle, "filo1");
+  FileHandle* qfh2 = SimpleFS_createFile(dhandle, "filo2");
+  int te = 0;
+  FileHandle* qfhn;
+  char filen[15];
+  for (; te < 110; te++){
+    snprintf(filen, 10, "file%d", te);
+    qfhn = SimpleFS_createFile(dhandle, filen);
+  }
+  SimpleFS_close(qfh1);
+  SimpleFS_close(qfh2);
+
+  char **namesto = malloc(sizeof(char*)*500);
+  for (i=0; i< 112; i++) namesto[i] = malloc(sizeof(char)*128);
+  ret = SimpleFS_readDir(namesto, dhandle);
+  for (i=0; i < 112; i++){
+    printf("\tfile %d: %s\n", i, namesto[i]);
   }
 
   
+  FirstFileBlock fabbrica1;
+  printf("Dati nel blocco 2 della dir: %d\n",dhandle->current_block->file_blocks[0]);
+  ret = DiskDriver_readBlock(dhandle->sfs->disk, &fabbrica1, 89);
+	printf("name of file: %s\n", fabbrica1.fcb.name);
+
+  DirectoryBlock como1;
+  ret = DiskDriver_readBlock(dhandle->sfs->disk, &como1, 88);
+	printf("first entry: %d\n", como1.file_blocks[3]);
+  
+
+  printf("Errore=\n");
+  //return 1;
+  printTree(dhandle);
+  return 1;
+    //
+*/
+
+
   // TEST CREATE NEW FILE 
   printf("\n\n---SimpleFS : TEST CREATE NEW FILE IN DIR \n");
   printf("Add a file 'temp' in '/' directory\n");
@@ -147,6 +199,7 @@ int main(int argc, char** argv) {
   SimpleFS_createFile(dhandle, "proj");
   SimpleFS_printFileHandle(fhandle1);
   SimpleFS_printFileHandle(fhandle2);
+  //return 1;
 
   // TEST READ DIR 
   printf("\n\n---SimpleFS : TEST READ DIR\n");
@@ -202,12 +255,15 @@ int main(int argc, char** argv) {
   SimpleFS_printFirstDirBlock(dhandle->dcb);
   
   FirstDirectoryBlock fdbtemp;
-  DiskDriver_readBlock(&dd, &fdbtemp, 3);
+  DiskDriver_readBlock(&dd, &fdbtemp, 4);
   SimpleFS_printFirstDirBlock(&fdbtemp);
 
   SimpleFS_changeDir(dhandle, "newdir");
   SimpleFS_printDirHandle(dhandle);
-  printf("block_num expected: \n");
+  printf("block_num expected: 7\n");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  SimpleFS_changeDir(dhandle, "..");
+  SimpleFS_printDirHandle(dhandle);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
 
   // TEST PRINT TREE
@@ -222,21 +278,18 @@ if (test_print_tree){
   printf("entries_dir: %d\n", dhandle->dcb->num_entries);
   printf("Printing tree with root '/' dir:\n");  
   printTree(dhandle);
-  for (i=0; i < ret; i++){
+  for (i=0; i < dhandle->dcb->num_entries; i++){
     free(names[i]);
     names[i] = malloc(sizeof(char)*128);
   }
   ret = SimpleFS_readDir(names, dhandle);
-  for (i=0; i < 3; i++){
+  for (i=0; i < dhandle->dcb->num_entries; i++){
     printf("\tfile-dir %d: %s\n", i, names[i]);
   }
 
   ret = SimpleFS_findFileInDir(dhandle, "proj");
   printf("File trovato? %d. Expected: pos integer\n", ret);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
-  
-  printTree(dhandle);
-  SimpleFS_printFirstDirBlock(dhandle->dcb);;
 
   SimpleFS_createFile(dhandle, "index.txt");
   SimpleFS_mkDir(dhandle, "newdir2");
@@ -290,6 +343,32 @@ if (test_print_tree){
   //SimpleFS_printFileHandle(fh);
 */
 
+  // TEST FILE WRITE READ 2 
+/*
+    printf("\n\n---SimpleFS : TEST FILE WRITE READ 2\n");
+  char *buff2 = "Lo giorno se n’andava, e l’aere bruno\ntoglieva li animai che sono in terra\nda le fatiche loro; e io sol uno\nm’apparecchiava a sostener la guerra\nsi del cammino e si de la pietate,\nche ritrarra la mente che non erra.\nO muse, o alto ingegno, or m’aiutate;\no mente che scrivesti ciò ch’io vidi,\nqui si parra la tua nobilitate.\nIo cominciai: «Poeta che mi guidi,\nguarda la mia virtu s’ell’e possente,\nprima ch’a l’alto passo tu mi fidi.\nTu dici che di Silvio il parente,\ncorruttibile ancora, ad immortale\nsecolo andò, e fu sensibilmente.\nPero, se l’avversario d’ogne male\ncortese i fu, pensando l’alto effetto\nch’uscir dovea di lui e ’l chi e ’l quale,\nnon pare indegno ad omo d’intelletto;\nch’e’ fu de l’alma Roma e di suo impero\nne l’empireo ciel per padre eletto:\nla quale e ’l quale, a voler dir lo vero,\nfu stabilita per lo loco santo\nu’ siede il successor del maggior Piero.\nPer quest’andata onde li dai tu vanto,\nintese cose che furon cagione\ndi sua vittoria e del papale ammanto.\nAndovvi poi lo Vas d’elezione,\nper recarne conforto a quella fede\nch’e principio a la via di salvazione.\nMa io perche venirvi? o chi ’l concede?\nIo non Enea, io non Paulo sono:\nme degno a cio ne io ne altri ’l crede.";
+
+  //memset(buff, 'V', strlen(buff));
+  fh = SimpleFS_openFile(dhandle, "proj");
+  SimpleFS_write(fh, buff2, strlen(buff2));
+  SimpleFS_printFileHandle(fh);
+  SimpleFS_printFirstFileBlock(fh->fcb);
+  SimpleFS_printFileBlock(fh->current_block);
+  //SimpleFS_close(fh);
+
+  char read_buff3[2048];
+  //memset(read_buff3, 0, sizeof(read_buff3));
+  fh = SimpleFS_openFile(dhandle, "proj");
+  SimpleFS_read(fh, read_buff3, 1100);
+  printf("READ FROM FILE TEMP:\n%s\n", read_buff3);
+  SimpleFS_printFileHandle(fh);
+  //SimpleFS_read(fh, read_buff+40, 50);
+  //printf("READ FROM FILE TEMP:\n%s\n", read_buff);
+  //SimpleFS_printFileHandle(fh);
+  return 1;
+*/
+
+
   // TEST FILE SEEK
   printf("\n\n---SimpleFS : TEST FILE SEEK\n");
   char buffer[2048];
@@ -305,24 +384,17 @@ if (test_print_tree){
   printf("Before removing file 'temp' from dir\n");
   char nam[10];
   FileHandle* fh2;
-  for (i=0; i< 120; i++){
+  for (i=0; i< 101; i++){
     snprintf(nam, 10, "file%d", i);
     fh2 = SimpleFS_createFile(dhandle, nam);
-    printf("\nDHANDLE:\n");
-    SimpleFS_printDirHandle(dhandle);
-    if( dhandle->current_block != NULL){
-        printf("stuffie: %d\n", dhandle->current_block->file_blocks[0]);
-        printf("aa:%d\n", dhandle->current_block->file_blocks[1]);
-    }
-    printf("\nFHANDLE:\n");
-    SimpleFS_printFirstFileBlock(fh2->fcb);
+    SimpleFS_close(fh2);
   }
-  printf("DODODODO =>\ndirhandle fist block's next_block: %d\n", dhandle->dcb->header.next_block);
- // printf("dir num_entries: %d\n", dhandle->dcb->num_entries);
   printTree(dhandle);
-  //SimpleFS_remove(dhandle, "temp");
-  //printf("After removing file 'temp' from dir\n");
-  //printTree(dhandle);
+ 
+  printf("After removing file 'temp' from dir\n");
+    SimpleFS_remove(dhandle, "temp");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  printTree(dhandle);
   printf("End test remove\n");
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
