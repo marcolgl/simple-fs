@@ -303,11 +303,28 @@ if (test_print_tree){
 
   printf("\n\n---SimpleFS : TEST FILE REMOVE\n");
   printf("Before removing file 'temp' from dir\n");
+  char nam[10];
+  FileHandle* fh2;
+  for (i=0; i< 120; i++){
+    snprintf(nam, 10, "file%d", i);
+    fh2 = SimpleFS_createFile(dhandle, nam);
+    printf("\nDHANDLE:\n");
+    SimpleFS_printDirHandle(dhandle);
+    if( dhandle->current_block != NULL){
+        printf("stuffie: %d\n", dhandle->current_block->file_blocks[0]);
+        printf("aa:%d\n", dhandle->current_block->file_blocks[1]);
+    }
+    printf("\nFHANDLE:\n");
+    SimpleFS_printFirstFileBlock(fh2->fcb);
+  }
+  printf("DODODODO =>\ndirhandle fist block's next_block: %d\n", dhandle->dcb->header.next_block);
+ // printf("dir num_entries: %d\n", dhandle->dcb->num_entries);
   printTree(dhandle);
-  SimpleFS_remove(dhandle, "temp");
-  printf("After removing file 'temp' from dir\n");
-  printTree(dhandle);
+  //SimpleFS_remove(dhandle, "temp");
+  //printf("After removing file 'temp' from dir\n");
+  //printTree(dhandle);
   printf("End test remove\n");
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
+  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 8)); 
 }

@@ -158,6 +158,8 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d){
 }
 
 
+
+//####################PROBLEM , dblock file_blocks corrupted, can't read the filenames properly
 // Given a DirectoryHandle, prints recursively his content (including subdirectories content)
 void printTreeAux(DiskDriver* disk, FirstDirectoryBlock* fdbInit, int layer){
 	int ret,i,
@@ -191,15 +193,19 @@ void printTreeAux(DiskDriver* disk, FirstDirectoryBlock* fdbInit, int layer){
 	while (read_entries < num_entries){
 		// Read next data block in the structure above allocated
 		ret = DiskDriver_readBlock(disk, &dblock, next_block);
+		printf("INGO =>\nnext_block : %d\nread_entries : %d\nnum_entries : %d\n", next_block, read_entries, num_entries);
+		printf("####@@@@@@### CALL1 -> dblock->header = %d\n", dblock.file_blocks[4]);
 		ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
 		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
 			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
 			file_block = dblock.file_blocks[block_index];
+			printf("dblock data: %d\n", dblock.file_blocks[5]);
 			ret = DiskDriver_readBlock(disk, &ffb1, file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
 			// Print the file
 			for (i=0; i<layer; i++) printf("-");
-			printf("%s\n", ffb1.fcb.name);
+			printf("OCIO in TREEPRINT : %s\n", ffb1.fcb.name);
+			printf("file block suseq read in tree: %d\n", file_block);
 			// Recursively print if it is a dir
 			if (ffb1.fcb.is_dir == 1)
 				printTreeAux(disk, (FirstDirectoryBlock*) &ffb1, layer+1);
@@ -214,6 +220,11 @@ void printTreeAux(DiskDriver* disk, FirstDirectoryBlock* fdbInit, int layer){
 
 // AGG: Given a DirectoryHandle, prints recursively his content (including subdirectories content)
 void printTree(DirectoryHandle* d){
+	int ret;
+	if (d->current_block != NULL){
+		ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+		ERROR_HELPER(ret, "Error in write block in create file\n");
+	}
 	printf("%s\n", d->dcb->fcb.name);
 	printTreeAux(d->sfs->disk, d->dcb, 1);
 }
@@ -327,12 +338,13 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 
 	DirectoryBlock dblock;		// structure to contain the next directory data block read
 	int next_block = fdb->header.next_block; // next dir data block in which search the file
-	
+	printf("before next block read_entries value: %d\nfile adding: %s\nnum_entries: %d\n", read_entries, filename, num_entries);
 	// Search the file in subsequent directory blocks (not it first dir block)
 	while (read_entries < num_entries){
 		// Read next data block in the structure above allocated
+		printf("HEY LOOOK 1=>\nnext_block : %d\nread_entries : %d\nnum_entries : %d\n", next_block, read_entries, num_entries);
 		ret = DiskDriver_readBlock(d->sfs->disk, &dblock, next_block);
-		ERROR_HELPER(ret, "Errore in read block, simplefs findfileindir\n");
+		ERROR_HELPER(ret, "Errore in read block, 0010simplefs findfileindir\n");
 		
 		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
 			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
@@ -634,7 +646,9 @@ int SimpleFS_seek(FileHandle* f, int pos){
 	}
 	return pos;
 }
-	
+
+
+//############### TODO MODIFY
 // creates an empty file in the directory d
 // returns null on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
@@ -678,8 +692,29 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 			d->current_block->file_blocks[d->pos_in_block] = designed_block;
 			d->dcb->num_entries++;
 			d->pos_in_block++;
+			printf("DIR POS IN BLOCK: %d\n",d->pos_in_block);
 			// if reach last byte of data, i allocate another block
 			if (d->pos_in_block == FB_DATA){
+				// find new free block
+				int nblock;
+				nblock = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(nblock, "Can't find a free block, in create file");
+				// Update next block in current one
+				d->current_block->header.next_block = nblock;
+				printf("\n@#@#@#@#@#@#@#@# FOMMO @#@#@#@#@#@#\n%d\n", d->current_block->header.next_block);
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file++;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				d->block_num = nblock;
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, nblock);
+				ERROR_HELPER(ret, "Error in write block in create file\n");
+
+/*
 				// write the in memory current block to disk
 				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
 				ERROR_HELPER(ret, "Error in write block, in create file");
@@ -691,7 +726,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
 				ERROR_HELPER(ret, "Can't find a free block, in create file");
 				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
-
+*/
 			}		
 		}
 		// writing in first directory block data
@@ -701,6 +736,29 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 			d->pos_in_block++;
 			// if reach last byte of data, i allocate another block
 			if (d->pos_in_block == FDB_DATA){
+				printf("\n@#@#@#@#@#@#@#@# FOMMO @#@#@#@#@#@#\n\n");
+				// find new free block
+				int nblock;
+				nblock = DiskDriver_getFreeBlock(d->sfs->disk, 0);
+				ERROR_HELPER(nblock, "Can't find a free block, in create file");
+				// Update next block in current one
+				d->dcb->header.next_block = nblock;
+				// write the in memory current block to disk
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
+				ERROR_HELPER(ret, "Error in write block, in create file");
+				// allocation of new block on disk and in cache
+				d->current_block = malloc(sizeof(DirectoryBlock));
+				d->pos_in_block = 0;
+				d->current_block->header.block_in_file = d->dcb->header.block_in_file+1;
+				d->current_block->header.next_block = -1;
+				d->current_block->header.previous_block = d->block_num;
+				d->block_num = nblock;
+				ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, nblock);
+				ERROR_HELPER(ret, "Error in write block in mkdir\n");
+				
+				
+				
+				/*
 				// write the in memory current block to disk
 				ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
 				ERROR_HELPER(ret, "Error in write block, in create file");
@@ -713,7 +771,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 				ret = DiskDriver_getFreeBlock(d->sfs->disk, 0);
 				ERROR_HELPER(ret, "Can't find a free block, in create file");
 				d->block_num = DiskDriver_writeBlock(d->sfs->disk, d->current_block, ret);
-
+				*/
 			}
 		}
 
@@ -917,7 +975,7 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 
 
 
-
+// ################## ALREADY MODIFIED
 // creates a new directory in the current one (NO: stored in fs->current_directory_block)
 // 0 on success
 // -1 on error
