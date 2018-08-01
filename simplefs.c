@@ -31,7 +31,6 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
 	fcb.directory_block = root_dir_block;
 	fcb.block_in_disk = root_dir_block;
 	sprintf(fcb.name, "/");
-	//printf("\nNAMEDIR: %s\n", fcb.name);
 	fcb.size_in_bytes = 0;
 	fcb.size_in_blocks = 1;
 	fcb.is_dir = 1;
@@ -141,7 +140,6 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d){
 	// Read the files' name in the subsequent dir blocks (not in first dir block)
 	while (read_entries < num_entries){
 		// Read next data block in the structure above allocated
-		printf("lop........................ %d\n", next_block);
 		ret = DiskDriver_readBlock(d->sfs->disk, &dblock, next_block);
 		ERROR_HELPER(ret, "Errore in read block, simplefs readdir findfileindir\n");
 		for (block_index = 0; (block_index < DB_DATA) && (read_entries < num_entries) ; block_index++){
@@ -149,7 +147,7 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d){
 			file_block = dblock.file_blocks[block_index];
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs readdir2 findfileindir\n");
-			printf("in read dir funct, file_block: %d, filename read: %s\n", file_block, ffb1.fcb.name);
+			if (DEBUG_IN_DIR) printf("in read dir funct, file_block: %d, filename read: %s\n", file_block, ffb1.fcb.name);
 			sprintf(names[read_entries], "%s",  ffb1.fcb.name);
 			read_entries++;
 		}
@@ -160,8 +158,6 @@ int SimpleFS_readDir(char** names, DirectoryHandle* d){
 }
 
 
-
-//####################PROBLEM , dblock file_blocks corrupted, can't read the filenames properly
 // Given a DirectoryHandle, prints recursively his content (including subdirectories content)
 void printTreeAux(DiskDriver* disk, FirstDirectoryBlock* fdbInit, int layer){
 	int ret,i,
@@ -268,7 +264,6 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 				if (db1->header.next_block != -1) last_block_ind = db1->header.next_block;
 				next_block_to_read = db1->header.next_block;
 			}
-			SimpleFS_printFirstDirBlock(&fdb1);
 			// Modify dir handle
 			d->block_num =last_block_ind;
 			//*(d->dcb) = fdb1;	// CHECK THIS, MAYBE MEMSET IS NEEDED
@@ -282,7 +277,7 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 	}
 
 	// Case: "." as dirname
-	if (memcmp(dirname, ".", strlen(dirname)) == 0){printf("bingo2\n"); return 0; }
+	if (memcmp(dirname, ".", strlen(dirname)) == 0){ return 0; }
 
 	// Find directory wanted in the current directory, ret -1 if can't find it
 	int dir_block = SimpleFS_findDirInDir(d, dirname);
@@ -635,7 +630,6 @@ int SimpleFS_seek(FileHandle* f, int pos){
 		ret = DiskDriver_readBlock(f->sfs->disk, fb, next_block);
 		ERROR_HELPER(ret, "Error in read, in file seek\n");
 		
-		SimpleFS_printFileBlock(fb);
 		// Update current position and set end condition and next block 
 		if (pos - current_pos <=  FB_DATA){
 			f->pos_in_file = pos - current_pos;
@@ -650,7 +644,6 @@ int SimpleFS_seek(FileHandle* f, int pos){
 }
 
 
-//############### TODO MODIFY
 // creates an empty file in the directory d
 // returns null on error (file existing, no free blocks)
 // an empty file consists only of a block of type FirstBlock
@@ -783,13 +776,11 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 	int last_entry_block;
 	if (d->dcb->num_entries <=  FDB_DATA){
 		last_entry_block = 0;
-		printf("Really? %d < %d\n", d->dcb->num_entries, FDB_DATA);
 	}
 	else {
 		last_entry_block = (d->dcb->num_entries - FDB_DATA)/DB_DATA +1;
 		if ((d->dcb->num_entries - FDB_DATA) % DB_DATA == 0) last_entry_block--;
 	}
-	printf("last entry block : %d\n", last_entry_block);
 
 	// if last block is first dir block
 	if (last_entry_block == 0){
@@ -876,9 +867,7 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 		}
 
 		db_r.file_blocks[entry_pos] = db_l.file_blocks[last_pos];
-		SimpleFS_printDirBlock(d,&db_r);
-		printf("foreign exchange : rem->%d,last_pos = %d, last_val->%d\n", entry_pos,last_pos, db_l.file_blocks[last_pos]);
-		printf("IMPO file_block = %d \n", dir_block_with_remove);		
+		
 		// Save the modified block db_r (which is not cache and so can't be saved in disk later)
 		ret = DiskDriver_writeBlock(d->sfs->disk, &db_r, dir_block_with_remove);
 		ERROR_HELPER(ret, "Error in write, in remove_file_from_dir\n");
@@ -963,14 +952,12 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	int counter_in_block;
 	// scanning other blocks (not first one)
 	while (read_entries < d->dcb->num_entries){
-		printf("hereforyou\n");
 		ret = DiskDriver_readBlock(d->sfs->disk, &db, next_block_to_scan);
 		ERROR_HELPER(ret, "Error in read, in remove scanning not first block\n");
 		counter_in_block = 0;
 		
 		while( counter_in_block < DB_DATA && read_entries < d->dcb->num_entries ){
 			file_block = db.file_blocks[counter_in_block];
-			printf("before crash, value of fileblock read = %d, cinbl = %d\n", file_block, db.file_blocks[counter_in_block]);
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 			ERROR_HELPER(ret, "Error in read block scanning a filename in remove\n");
 
@@ -989,8 +976,6 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 }
 
 
-
-// ################## ALREADY MODIFIED
 // creates a new directory in the current one (NO: stored in fs->current_directory_block)
 // 0 on success
 // -1 on error
