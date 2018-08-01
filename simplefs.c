@@ -449,6 +449,11 @@ int min(int a, int b){
 	return b;
 }
 
+int max(int a, int b){
+  if (a >= b) return a;
+  return b;
+}
+
 // this is needed in read file, to initialize the right value to readable var
 int take_dim(int a){
 	if (a == 0) return FB_DATA;
@@ -837,24 +842,23 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 		}
 
 		d->dcb->file_blocks[entry_pos] = db_l.file_blocks[last_pos];
-		printf("last pos = %d, last_e_blo = %d, num_entries = %d\n", last_pos, last_entry_block, d->dcb->num_entries);
 		
 		// case in which we need to remove the blank block
-		if (last_pos == FB_DATA-1){
+		if (last_pos == DB_DATA-1){
 			// remove block (set bitmap), update curr_block and update pos in block (in dirhandle)
 			ret = DiskDriver_setBlock(d->sfs->disk, d->block_num, 0);
 			ERROR_HELPER(ret, "Error in bitmap set, in remove_file_from_dir\n");
 			
+			d->block_num = d->current_block->header.previous_block;
 			ret = DiskDriver_readBlock(d->sfs->disk, d->current_block, d->current_block->header.previous_block);
 			ERROR_HELPER(ret, "Error in read block, in remove_file_from_dir\n");
 
 			d->current_block->header.next_block = -1;
 			d->pos_in_block = last_pos;
 		}
-		// if last entry is first in curr_block we only need to update pos in block (in dirhandle)
+		
 		else{ //if (last_pos == 0) or any other last_pos != FB_DATA-1
 			d->pos_in_block--;
-			printf("pos_in_block: %d. Expected 0\n", d->pos_in_block);
 		}	
 	}	
 
@@ -863,6 +867,7 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 	if (last_entry_block != 0 && block_inf_entry_to_remove != 0){
 		counter = 0;
 		counter_r = 0;
+		int dir_block_with_remove;
 
 		while (counter < last_entry_block){
 			ret = DiskDriver_readBlock(d->sfs->disk, &db_l, next_block);
@@ -875,20 +880,28 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 			ret = DiskDriver_readBlock(d->sfs->disk, &db_r, next_block_r);
 			ERROR_HELPER(ret, "Error in read, in remove_file_from_dir\n");
 			counter_r++;
+			if (counter_r == block_inf_entry_to_remove) dir_block_with_remove = next_block_r;
 			next_block_r = db_r.header.next_block;
 		}
 
 		db_r.file_blocks[entry_pos] = db_l.file_blocks[last_pos];
+		SimpleFS_printDirBlock(d,&db_r);
+		printf("foreign exchange : rem->%d,last_pos = %d, last_val->%d\n", entry_pos,last_pos, db_l.file_blocks[last_pos]);
+		printf("IMPO file_block = %d \n", dir_block_with_remove);		
 		// Save the modified block db_r (which is not cache and so can't be saved in disk later)
-		ret = DiskDriver_writeBlock(d->sfs->disk, &db_r, file_block);
+		ret = DiskDriver_writeBlock(d->sfs->disk, &db_r, dir_block_with_remove);
 		ERROR_HELPER(ret, "Error in write, in remove_file_from_dir\n");
+		// save in cache also if needed (if db_r is the current dir block)
+		if (d->block_num == dir_block_with_remove)
+			*d->current_block = db_r;
 
 		// case in which we need to remove the blank block
-		if (last_pos == FB_DATA-1){
+		if (last_pos == DB_DATA-1){
 			// remove block (set bitmap), update curr_block and update pos in block (in dirhandle)
 			ret = DiskDriver_setBlock(d->sfs->disk, d->block_num, 0);
 			ERROR_HELPER(ret, "Error in bitmap set, in remove_file_from_dir\n");
 			
+			d->block_num = d->current_block->header.previous_block;
 			ret = DiskDriver_readBlock(d->sfs->disk, d->current_block, d->current_block->header.previous_block);
 			ERROR_HELPER(ret, "Error in read block, in remove_file_from_dir\n");
 
@@ -898,13 +911,15 @@ int remove_file_from_dir(DirectoryHandle* d, int entry_pos, int block_inf_entry_
 		// if last entry is first in curr_block we only need to update pos in block (in dirhandle)
 		else{ //if (last_pos == 0) or any other last_pos != FB_DATA-1
 			d->pos_in_block--;
-			printf("pos_in_block: %d. Expected 0\n", d->pos_in_block);
 		}	
 
 	}
 
 	// Decrease num_entries in directory
 	d->dcb->num_entries--;
+	// Maybe save the num_entries on disk with another write current dir
+	ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+	ERROR_HELPER(ret, "Error in last save in remove_file_from_dir\n");
 
 	return 0;
 }
@@ -930,6 +945,8 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	int read_entries = 0;
 	int file_block;		// here we store the block_num of the file scanned
 	FirstFileBlock ffb;
+	DirectoryBlock db;
+	int next_block_to_scan;
 
 	// recursively remove all files
 	if (memcmp(filename, "*", strlen(filename)) == 0){
@@ -943,7 +960,7 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 		ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 		ERROR_HELPER(ret, "Error in read block in file remove\n");
 		
-		if (memcmp(ffb.fcb.name, filename, strlen(ffb.fcb.name)) == 0){ 	// file found
+		if (memcmp(ffb.fcb.name, filename, max(strlen(filename),strlen(ffb.fcb.name))) == 0){ 	// file found
 			remove_file_from_dir(d, read_entries, 0, file_block);
 			remove_file_from_disk(d->sfs->disk, file_block);
 			return 0;
@@ -951,12 +968,33 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 		read_entries++;
 	}
 
+	next_block_to_scan = d->dcb->header.next_block;
+	int counter_in_block;
 	// scanning other blocks (not first one)
 	while (read_entries < d->dcb->num_entries){
-		printf("azum\n\n");
+		printf("hereforyou\n");
+		ret = DiskDriver_readBlock(d->sfs->disk, &db, next_block_to_scan);
+		ERROR_HELPER(ret, "Error in read, in remove scanning not first block\n");
+		counter_in_block = 0;
+		
+		while( counter_in_block < DB_DATA && read_entries < d->dcb->num_entries ){
+			file_block = db.file_blocks[counter_in_block];
+			printf("before crash, value of fileblock read = %d, cinbl = %d\n", file_block, db.file_blocks[counter_in_block]);
+			ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
+			ERROR_HELPER(ret, "Error in read block scanning a filename in remove\n");
+
+			if (memcmp(ffb.fcb.name, filename, max(strlen(ffb.fcb.name), strlen(ffb.fcb.name))) == 0){ 	// file found
+				remove_file_from_dir(d, counter_in_block, db.header.block_in_file, file_block);
+				remove_file_from_disk(d->sfs->disk, file_block);
+				return 0;
+			}
+			read_entries++;
+			counter_in_block++;
+		}
+		next_block_to_scan = db.header.next_block;
 	}
 
-	return 0;
+	return -1; 	// file not found
 }
 
 
@@ -1117,4 +1155,22 @@ void SimpleFS_printFileBlock(FileBlock* fb){
 		printf("%c", fb->data[i]);
 	}
 	printf("|\n"); 
+}
+
+void SimpleFS_printDirBlock(DirectoryHandle* d, DirectoryBlock* db){
+	printf("DIRECTORY BLOCK:\n");
+	printf("-data: ");
+	int i=0;
+	int range;
+	if ( FDB_DATA +DB_DATA*(db->header.block_in_file)- d->dcb->num_entries == 0)
+		range = DB_DATA -1;
+	else if ( FDB_DATA +DB_DATA*(db->header.block_in_file)- d->dcb->num_entries == FB_DATA)
+		range = 0;
+	else
+		range = DB_DATA - (FDB_DATA + DB_DATA*(db->header.block_in_file) - d->dcb->num_entries) -1;
+	for (; i<= range; i++){
+		if (db->file_blocks[i] == 0 || db->file_blocks[i] > 5000) break;
+		printf("|%d", db->file_blocks[i]);
+	}	
+	printf("|\n");
 }

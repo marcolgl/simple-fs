@@ -8,10 +8,7 @@
 #define TOTAL_BLOCKS 8192
 // total space = 4194304
 
-int max(int a, int b){
-  if (a >= b) return a;
-  return b;
-}
+
 
 int main(int argc, char** argv) {
   /*printf("FirstBlock size %ld\n", sizeof(FirstFileBlock));
@@ -390,10 +387,14 @@ if (test_print_tree){
     SimpleFS_close(fh2);
   }
   printTree(dhandle);
- 
-  printf("After removing file 'temp' from dir\n");
-    SimpleFS_remove(dhandle, "temp");
   SimpleFS_printFirstDirBlock(dhandle->dcb);
+  SimpleFS_printDirBlock(dhandle, dhandle->current_block);
+  printf("After removing file 'temp' from dir\n");
+
+  SimpleFS_remove(dhandle, "file86");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  SimpleFS_printDirBlock(dhandle, dhandle->current_block);
+  printf("IMPO2 file = %d", dhandle->block_num);
   printTree(dhandle);
   printf("End test remove\n");
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));

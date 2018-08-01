@@ -110,6 +110,8 @@ void SimpleFS_printFirstDirBlock(FirstDirectoryBlock* fdb);
 void SimpleFS_printFirstFileBlock(FirstFileBlock* ffb);
 // AGG:
 void SimpleFS_printFileBlock(FileBlock* fb);
+// AGG:
+void SimpleFS_printDirBlock(DirectoryHandle* d, DirectoryBlock* db);
 
 
 
@@ -170,6 +172,7 @@ int SimpleFS_mkDir(DirectoryHandle* d, char* dirname);
 // if a directory, it removes recursively all contained files
 int SimpleFS_remove(DirectoryHandle* d, char* filename);
 
+int max(int a, int b);
 
 /*
  * STRUTTURE AGGIUNTE ALLE SPECIFICHE
