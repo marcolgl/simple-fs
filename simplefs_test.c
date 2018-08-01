@@ -376,28 +376,46 @@ if (test_print_tree){
 
 
   // TEST FILE REMOVE
-
+int test_file_remove = 1;
+if (test_file_remove){
   printf("\n\n---SimpleFS : TEST FILE REMOVE\n");
   printf("Before removing file 'temp' from dir\n");
   char nam[10];
   FileHandle* fh2;
-  for (i=0; i< 101; i++){
+  // i = 101
+  for (i=0; i< 350; i++){
     snprintf(nam, 10, "file%d", i);
+    if (i == 209){
+      printf("@@@@@@@ IN 209\n");
+      SimpleFS_printFirstDirBlock(dhandle->dcb);
+      SimpleFS_printDirBlock(dhandle, dhandle->current_block);
+      SimpleFS_printDirHandle(dhandle);
+      //
+      FirstFileBlock ffblock1; 
+      //ret = DiskDriver_readBlock(dhandle->sfs->disk, &ffblock1, 129);
+      //if (ret == -1) printf("RET = -1\n");
+      //SimpleFS_printFirstFileBlock(&ffblock1);
+      printf("@@@@@@\n");
+    }
     fh2 = SimpleFS_createFile(dhandle, nam);
     SimpleFS_close(fh2);
   }
+
   printTree(dhandle);
   SimpleFS_printFirstDirBlock(dhandle->dcb);
   SimpleFS_printDirBlock(dhandle, dhandle->current_block);
   printf("After removing file 'temp' from dir\n");
 
-  SimpleFS_remove(dhandle, "file86");
+  SimpleFS_remove(dhandle, "temp");
   SimpleFS_printFirstDirBlock(dhandle->dcb);
   SimpleFS_printDirBlock(dhandle, dhandle->current_block);
   printf("IMPO2 file = %d", dhandle->block_num);
+  printTree(dhandle);
+  SimpleFS_changeDir(dhandle, "newdir");
   printTree(dhandle);
   printf("End test remove\n");
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
   printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 8)); 
+  }
 }

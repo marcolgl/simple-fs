@@ -7,7 +7,7 @@
 // and a char that indicates the offset of the bit inside the array
 BitMapEntryKey BitMap_blockToIndex(int num){
     int entry_num = num/8;
-    char bit_num = (char)num%8;
+    char bit_num = (char)(num%8);
     BitMapEntryKey res;
     res.entry_num = entry_num;
     res.bit_num = bit_num;

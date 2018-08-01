@@ -6,8 +6,8 @@
 #define FFB_DATA 340	// bytes per i dati nel primo blocco di un file
 #define FB_DATA 448		// bytes per i dati in un blocco qualsiasi, diverso dal primo, di un file
 
-#define FDB_DATA 84		// integer per i dati nel primo blocco di una directory
-#define DB_DATA 112		// integer per i dati in un blocco qualsiasi, diverso dal primo, di una directory
+#define FDB_DATA 87		//84 wrong num		// integer per i dati nel primo blocco di una directory
+#define DB_DATA 125		//112 wrong num		// integer per i dati in un blocco qualsiasi, diverso dal primo, di una directory
 
 #define DEBUG 0
 
@@ -343,8 +343,20 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 	DirectoryBlock dblock;		// structure to contain the next directory data block read
 	int next_block = fdb->header.next_block; // next dir data block in which search the file
 	printf("before next block read_entries value: %d\nfile adding: %s\nnum_entries: %d\n", read_entries, filename, num_entries);
-	// Search the file in subsequent directory blocks (not it first dir block)
+	// Search the file in subsequent directory blocks (not in first dir block)
 	while (read_entries < num_entries){
+		
+		// DEBUG //
+		printf("CHECK THESE BLOCKS§§§§§§§§§§§§§§§§§§§§\n");
+		FirstDirectoryBlock fdb_deb =  *d->dcb;
+		DirectoryBlock db3 = *d->current_block; 
+		SimpleFS_printFirstDirBlock(&fdb_deb);
+		SimpleFS_printDirBlock(d, &db3);
+		printf("next_block: %d\n", next_block);
+		printf("END§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§\n");
+
+
+
 		// Read next data block in the structure above allocated
 		ret = DiskDriver_readBlock(d->sfs->disk, &dblock, next_block);
 		ERROR_HELPER(ret, "Errore in read block, 0010simplefs findfileindir\n");
@@ -353,11 +365,13 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 			if (DEBUG_IN_DIR) printf("\nSearching file in block...\n");
 			file_block = dblock.file_blocks[block_index];
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
+			printf("DEBUG 121: file_block = %d\n", file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs funct findfileindir\n");
 			read_entries++;
 			if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename) == 0))
 				return file_block;	// file found in directory entries
 		}
+		printf("CHANGE BLOCK : read_entries=%d, next_block =%d\n", read_entries, dblock.header.next_block);
 		next_block = dblock.header.next_block;
 	}
 	if (DEBUG_IN_DIR) printf("Not found\n");
@@ -670,7 +684,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	// Check there is a block available on disk
 	designed_block = DiskDriver_getFreeBlock(d->sfs->disk, 0);
 	if (designed_block == -1) return NULL;		// no free blocks
-	
+	if (designed_block == 129) printf("-----------------ECCOLO---------------\n");
 
 	// Create new file block and allocate in disk and cache
 	ret = DiskDriver_setBlock(d->sfs->disk, designed_block, 1);
@@ -694,6 +708,21 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 	ret = DiskDriver_writeBlock(d->sfs->disk, ffb, designed_block);
 	ERROR_HELPER(ret, "Can't write on disk, in file creation");
 
+	///DEBUG
+	if (designed_block == 129){
+	
+		printf("Blocco 129: %d\n", DiskDriver_getFreeBlock(d->sfs->disk, 0));
+		BitMap bm;
+		bm.num_bits = d->sfs->disk->header->num_blocks;
+		bm.entries = d->sfs->disk->bitmap_data;
+		int allocated_block = 0;
+		BitMap_print(&bm);
+		FirstFileBlock fdebug;
+		DiskDriver_readBlock(d->sfs->disk, &fdebug, 129);
+		printf("LETTURA IN FUNC\n");
+		SimpleFS_printFirstFileBlock(&fdebug);
+	}
+
 	// Add file on directory data	
 		// writing in data directory block
 		if (d->current_block != NULL){
@@ -701,7 +730,7 @@ FileHandle* SimpleFS_createFile(DirectoryHandle* d, const char* filename){
 			d->dcb->num_entries++;
 			d->pos_in_block++;
 			// if reach last byte of data, i allocate another block
-			if (d->pos_in_block == FB_DATA){
+			if (d->pos_in_block == DB_DATA){
 				// find new free block
 				int nblock;
 				nblock = DiskDriver_getFreeBlock(d->sfs->disk, 0);
