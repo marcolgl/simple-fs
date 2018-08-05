@@ -6,6 +6,3 @@ NOTE:
   in memory the changes done), so when issuing a changeDir (cd).
   In my implementation i am currently using this second approach (lazy one).
 
-
-
-BUG: when creating a file in block 129 in a directory it explodes

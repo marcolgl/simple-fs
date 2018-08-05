@@ -8,6 +8,10 @@
 #define TOTAL_BLOCKS 8192
 // total space = 4194304
 
+#define ANSI_COLOR_PURPLE  "\e[1;35m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_GREEN   "\e[0;92m"
+
 
 
 int main(int argc, char** argv) {
@@ -78,8 +82,8 @@ int main(int argc, char** argv) {
   DiskDriver_init(&dd, "mysystem", TOTAL_BLOCKS);
   DiskHeader* dh = dd.header;
   if (test_init){
-    printf("---DiskHeader : TEST INIT \n\tnum_blocks = %d\n\tbitmap_blocks = %d\n\tbitmap_entries = %d\n\tfree_blocks = %d\n\tfirst_free_block = %d\n\n\n"
-    , dh->num_blocks, dh->bitmap_blocks, dh->bitmap_entries, dh->free_blocks, dh->first_free_block);
+    printf(ANSI_COLOR_PURPLE "---DiskHeader : TEST INIT \n" ANSI_COLOR_RESET);
+    printf("\tnum_blocks = %d " ANSI_COLOR_GREEN "✔" ANSI_COLOR_RESET "\n\tbitmap_blocks = %d\n\tbitmap_entries = %d\n\tfree_blocks = %d\n\tfirst_free_block = %d\n\n\n", dh->num_blocks, dh->bitmap_blocks, dh->bitmap_entries, dh->free_blocks, dh->first_free_block);
   }  
 
   // TEST GET FREE BLOCK
@@ -378,7 +382,7 @@ if (test_print_tree){
   // TEST FILE REMOVE
 int test_file_remove = 1;
 if (test_file_remove){
-  printf("\n\n---SimpleFS : TEST FILE REMOVE\n");
+  printf( "\n\n---SimpleFS : TEST FILE REMOVE\n");
   printf("Before removing file 'temp' from dir\n");
   char nam[10];
   FileHandle* fh2;
