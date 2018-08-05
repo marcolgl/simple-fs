@@ -3,4 +3,4 @@
 mysystem
 simplefs_test
 disk_driver_test
-bitmap/bitmap-main
+bitmap/bit-main
