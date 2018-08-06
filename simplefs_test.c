@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
   
   // note: even if we can choose which test run, most of them requires previous
   // ones for their structures. The argument only allows us to which test's outputs show
-  int i,j,num_tests = 11,
+  int i,j,num_tests = 10,
       test_init = 0,
       test_format = 0,
       test_create_file = 0,
@@ -31,8 +31,7 @@ int main(int argc, char** argv) {
       test_cd = 0,
       test_print_tree = 0,
       test_open_close = 0,
-      test_write_read = 0,
-      test_seek = 0;
+      test_write_read_seek = 0;
 
   char* test_names[] = {
                        "-test_init",
@@ -44,11 +43,10 @@ int main(int argc, char** argv) {
                        "-test_cd",
                        "-test_print_tree",
                        "-test_open_close",
-                       "-test_write_read", 
-                       "-test_seek"
+                       "-test_write_read_seek"
                       }; 
-  if (argc > 9){
-    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read\n\t-test_seek\n");
+  if (argc > 10){
+    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n");
     return -1;
   }
   for (i=1; i< argc; i++){
@@ -64,14 +62,13 @@ int main(int argc, char** argv) {
         if (j == 6) test_cd = 1;
         if (j == 7) test_print_tree = 1;
         if (j == 8) test_open_close = 1;
-        if (j == 9) test_write_read = 1;
-        if (j == 10) test_seek = 1;
+        if (j == 9) test_write_read_seek = 1;
         check = 1;
         break;
       }
     }
     if (check == 0) {
-      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read\n\t-test_seek\n");
+      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n");
       return -1;
     }
   }
@@ -87,8 +84,7 @@ int main(int argc, char** argv) {
         test_cd = 1;
         test_print_tree = 1;
         test_open_close = 1;
-        test_write_read = 1;
-        test_seek = 1;
+        test_write_read_seek = 1;
   }
   // END COMMAND VALIDATION 
 
@@ -340,7 +336,7 @@ if (test_open_close){
   SimpleFS_close(fh);
 }
 
-if (test_write_read){
+if (test_write_read_seek){
   // TEST FILE WRITE
   printf(ANSI_COLOR_PURPLE "\n\n---SimpleFS : TEST FILE WRITE-READ\n" ANSI_COLOR_RESET);
   char *buff = "Il cammino dell'uomo timorato e minacciato da ogni parte dalle iniquita degli esseri egoisti e dalla tirannia degli uomini malvagi, benedetto sia colui che conduce i deboli attraverso la valle delle tenebre, poiche egli e il pastore di suo fratello ed il ricercatore dei figli smarriti. E la mia vendetta calera su di loro, con grandissima malavagita e furiosissimo sdegno, du si coloro che si provanno ad ammorbare e a distruggere i miei fratelli, e tu saprai che il mio nome e quello del signore, quando faro calare la mia vendetta sopra di te.";
@@ -363,7 +359,7 @@ if (test_write_read){
   printf("\nRead next 50 bytes on file and append them to the buffer:\n%s\n\n", read_buff);
   SimpleFS_printFileHandle(fh);
   SimpleFS_close(fh);
-}
+
 
   // TEST FILE WRITE READ 2 
 /*
@@ -393,12 +389,10 @@ if (test_write_read){
 
 
   // TEST FILE SEEK
-if (test_seek){
   printf(ANSI_COLOR_PURPLE "\n\n---SimpleFS : TEST FILE SEEK\n" ANSI_COLOR_RESET);
   char buffer[2048];
-  FileHandle* fh = SimpleFS_openFile(dhandle, "temp");
+  fh = SimpleFS_openFile(dhandle, "temp");
   printf("-Seek to position 400 in file 'temp'.\n");
-  printf("MIMI: %p\n", fh->current_block);
   SimpleFS_seek(fh, 400);
   SimpleFS_read(fh, buffer, 15);
   printf("Read 15 bytes from current position:\n%s-\n\n", buffer);

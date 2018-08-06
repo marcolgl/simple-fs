@@ -523,6 +523,10 @@ int SimpleFS_write(FileHandle* f, void* data, int size){
 		f->pos_in_file += writing_size;
 		f->fcb->fcb.size_in_bytes += writing_size;
 
+		// Save first block on which i have written current new size
+		ret = DiskDriver_writeBlock(f->sfs->disk, f->fcb, f->fcb->fcb.block_in_disk);
+		ERROR_HELPER(ret, "Error in write block in write op");
+
 		// Save the block on which i have just written on disk
 		ret = DiskDriver_writeBlock(f->sfs->disk, f->current_block, f->block_num);
 		ERROR_HELPER(ret, "Error in write block in write op");
@@ -609,7 +613,7 @@ int SimpleFS_seek(FileHandle* f, int pos){
 	if (pos > f->fcb->fcb.size_in_bytes) return -1;
 
 	// if seek in a pos in the first block
-	if (pos <= FFB_DATA){
+	if (pos < FFB_DATA){ // change1
 		f->pos_in_file = pos;
 		if (f->current_block != NULL) {
 			free(f->current_block);
@@ -627,15 +631,15 @@ int SimpleFS_seek(FileHandle* f, int pos){
 	// in this case i have to browse the block list until i reach the block that has the pos wanted
 	while (current_pos < pos){
 		ret = DiskDriver_readBlock(f->sfs->disk, fb, next_block);
-		ERROR_HELPER(ret, "Error in read, in file seek\n");
-		
+		ERROR_HELPER(ret, "Error in read, in file seek\n"); 
+
 		// Update current position and set end condition and next block 
-		if (pos - current_pos <=  FB_DATA){
+		if (pos - current_pos <  FB_DATA){ // change2
 			f->pos_in_file = pos - current_pos;
 			current_pos = pos;
 		}
 		else{
-			current_pos += FFB_DATA;
+			current_pos += FB_DATA; // change3
 		}
 		next_block = fb->header.next_block;
 	}
