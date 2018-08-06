@@ -5,3 +5,5 @@ simplefs_test
 simplefs_test_weird_cases
 disk_driver_test
 bitmap/bit-main
+DetailedReview.tex
+Report.tex
