@@ -50,7 +50,6 @@ DirectoryHandle* SimpleFS_init(SimpleFS* fs, DiskDriver* disk){
 	dh->pos_in_dir = 0;
 	dh->pos_in_block = 0;
 	dh->block_num = root_dir_block;
-	printf("root_dir: %d\n", root_dir_block);
 	
 	// returns the root directory handle
 	return dh;

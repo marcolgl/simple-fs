@@ -11,7 +11,6 @@
 #define ANSI_COLOR_PURPLE  "\e[1;35m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 #define ANSI_COLOR_GREEN   "\e[0;92m"
-#define CHECK "✔"
 
 int main(int argc, char** argv) {
 
