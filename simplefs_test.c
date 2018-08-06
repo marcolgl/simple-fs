@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
   
   // note: even if we can choose which test run, most of them requires previous
   // ones for their structures. The argument only allows us to which test's outputs show
-  int i,j,num_tests = 10,
+  int i,j,num_tests = 11,
       test_init = 0,
       test_format = 0,
       test_create_file = 0,
@@ -31,7 +31,8 @@ int main(int argc, char** argv) {
       test_cd = 0,
       test_print_tree = 0,
       test_open_close = 0,
-      test_write_read_seek = 0;
+      test_write_read_seek = 0,
+      test_remove = 0;
 
   char* test_names[] = {
                        "-test_init",
@@ -43,10 +44,11 @@ int main(int argc, char** argv) {
                        "-test_cd",
                        "-test_print_tree",
                        "-test_open_close",
-                       "-test_write_read_seek"
+                       "-test_write_read_seek",
+                       "-test_remove"
                       }; 
   if (argc > 10){
-    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n");
+    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
     return -1;
   }
   for (i=1; i< argc; i++){
@@ -63,12 +65,13 @@ int main(int argc, char** argv) {
         if (j == 7) test_print_tree = 1;
         if (j == 8) test_open_close = 1;
         if (j == 9) test_write_read_seek = 1;
+        if (j == 10) test_remove = 1;
         check = 1;
         break;
       }
     }
     if (check == 0) {
-      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n");
+      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
       return -1;
     }
   }
@@ -85,6 +88,7 @@ int main(int argc, char** argv) {
         test_print_tree = 1;
         test_open_close = 1;
         test_write_read_seek = 1;
+        test_remove = 1;
   }
   // END COMMAND VALIDATION 
 
@@ -402,13 +406,12 @@ if (test_write_read_seek){
   if (fh->pos_in_file == 75) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
   SimpleFS_close(fh);
 }
-/*
+
   // TEST FILE REMOVE
-int test_file_remove = 1;
-if (test_file_remove){
-  printf( "\n\n---SimpleFS : TEST FILE REMOVE\n");
-  printf("Before removing file 'temp' from dir\n");
-  char nam[10];
+if (test_remove){
+  printf(ANSI_COLOR_PURPLE "\n\n---SimpleFS : TEST FILE REMOVE\n" ANSI_COLOR_RESET);
+  printf("-Before removing file 'temp' from dir:\n");
+  /*char nam[10];
   FileHandle* fh2;
   // i = 101
   for (i=0; i< 350; i++){
@@ -416,22 +419,30 @@ if (test_file_remove){
     fh2 = SimpleFS_createFile(dhandle, nam);
     SimpleFS_close(fh2);
   }
-
-  printTree(dhandle);
-  SimpleFS_printFirstDirBlock(dhandle->dcb);
-  SimpleFS_printDirBlock(dhandle, dhandle->current_block);
-  printf("After removing file 'temp' from dir\n");
-
-  SimpleFS_remove(dhandle, "temp");
-  SimpleFS_printFirstDirBlock(dhandle->dcb);
-  SimpleFS_printDirBlock(dhandle, dhandle->current_block);
-  printTree(dhandle);
-  SimpleFS_changeDir(dhandle, "newdir");
-  printTree(dhandle);
-  printf("End test remove\n");
-  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
-  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
-  printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 8)); 
-  }
 */
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  printf("\n");
+  //SimpleFS_printDirBlock(dhandle, dhandle->current_block);
+  printTree(dhandle);
+  }
+  
+  printf(ANSI_COLOR_CYAN "\nREMOVING A FILE FROM CURRENT DIR '\\'\n" ANSI_COLOR_RESET);
+  printf("Removing 'temp' from '/' root dir\n");
+  SimpleFS_remove(dhandle, "temp");
+
+if (test_remove){
+  printf("\n-After removing file 'temp' from dir:\n");
+  SimpleFS_printFirstDirBlock(dhandle->dcb);
+  printf("\n");
+  //SimpleFS_printDirBlock(dhandle, dhandle->current_block);
+  printTree(dhandle);
+  //SimpleFS_changeDir(dhandle, "newdir");
+  //printTree(dhandle);
+  printf("\n");
+  printf("Next_free_block: %d. Expected 4, cause i removed temp, whose block was 4.", DiskDriver_getFreeBlock(dhandle->sfs->disk, 0));
+  if (DiskDriver_getFreeBlock(&dd, 0) == 4) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
+  //printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
+  //printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 8)); 
+  }
+
 }
