@@ -129,48 +129,6 @@ int main(int argc, char** argv) {
     if (ret == 4) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
   }
 
-    // TEST CREATE NEW FILE 000
-/*
-  printf("\n\n---SimpleFS : Create new file test case 000 \n");
-  printf("Add a files in '/' directory\n");
-  FileHandle* qfh1 = SimpleFS_createFile(dhandle, "filo1");
-  FileHandle* qfh2 = SimpleFS_createFile(dhandle, "filo2");
-  int te = 0;
-  FileHandle* qfhn;
-  char filen[15];
-  for (; te < 110; te++){
-    snprintf(filen, 10, "file%d", te);
-    qfhn = SimpleFS_createFile(dhandle, filen);
-  }
-  SimpleFS_close(qfh1);
-  SimpleFS_close(qfh2);
-
-  char **namesto = malloc(sizeof(char*)*500);
-  for (i=0; i< 112; i++) namesto[i] = malloc(sizeof(char)*128);
-  ret = SimpleFS_readDir(namesto, dhandle);
-  for (i=0; i < 112; i++){
-    printf("\tfile %d: %s\n", i, namesto[i]);
-  }
-
-  
-  FirstFileBlock fabbrica1;
-  printf("Dati nel blocco 2 della dir: %d\n",dhandle->current_block->file_blocks[0]);
-  ret = DiskDriver_readBlock(dhandle->sfs->disk, &fabbrica1, 89);
-	printf("name of file: %s\n", fabbrica1.fcb.name);
-
-  DirectoryBlock como1;
-  ret = DiskDriver_readBlock(dhandle->sfs->disk, &como1, 88);
-	printf("first entry: %d\n", como1.file_blocks[3]);
-  
-
-  printf("Errore=\n");
-  //return 1;
-  printTree(dhandle);
-  return 1;
-    //
-*/
-
-
   // TEST CREATE NEW FILE 
 if(test_create_file){
   printf(ANSI_COLOR_PURPLE "\n\n---SimpleFS : TEST CREATE NEW FILE IN DIR \n" ANSI_COLOR_RESET);
@@ -363,33 +321,6 @@ if (test_write_read_seek){
   printf("\nRead next 50 bytes on file and append them to the buffer:\n%s\n\n", read_buff);
   SimpleFS_printFileHandle(fh);
   SimpleFS_close(fh);
-
-
-  // TEST FILE WRITE READ 2 
-/*
-    char read_buff2[2048];
-    printf("\n\n---SimpleFS : TEST FILE WRITE READ 2\n");
-  char *buff2 = "Lo giorno se n’andava, e l’aere bruno\ntoglieva li animai che sono in terra\nda le fatiche loro; e io sol uno\nm’apparecchiava a sostener la guerra\nsi del cammino e si de la pietate,\nche ritrarra la mente che non erra.\nO muse, o alto ingegno, or m’aiutate;\no mente che scrivesti ciò ch’io vidi,\nqui si parra la tua nobilitate.\nIo cominciai: «Poeta che mi guidi,\nguarda la mia virtu s’ell’e possente,\nprima ch’a l’alto passo tu mi fidi.\nTu dici che di Silvio il parente,\ncorruttibile ancora, ad immortale\nsecolo andò, e fu sensibilmente.\nPero, se l’avversario d’ogne male\ncortese i fu, pensando l’alto effetto\nch’uscir dovea di lui e ’l chi e ’l quale,\nnon pare indegno ad omo d’intelletto;\nch’e’ fu de l’alma Roma e di suo impero\nne l’empireo ciel per padre eletto:\nla quale e ’l quale, a voler dir lo vero,\nfu stabilita per lo loco santo\nu’ siede il successor del maggior Piero.\nPer quest’andata onde li dai tu vanto,\nintese cose che furon cagione\ndi sua vittoria e del papale ammanto.\nAndovvi poi lo Vas d’elezione,\nper recarne conforto a quella fede\nch’e principio a la via di salvazione.\nMa io perche venirvi? o chi ’l concede?\nIo non Enea, io non Paulo sono:\nme degno a cio ne io ne altri ’l crede.";
-
-  //memset(buff, 'V', strlen(buff));
-  fh = SimpleFS_openFile(dhandle, "proj");
-  SimpleFS_write(fh, buff2, strlen(buff2));
-  SimpleFS_printFileHandle(fh);
-  SimpleFS_printFirstFileBlock(fh->fcb);
-  SimpleFS_printFileBlock(fh->current_block);
-  //SimpleFS_close(fh);
-
-  char read_buff3[2048];
-  //memset(read_buff3, 0, sizeof(read_buff3));
-  fh = SimpleFS_openFile(dhandle, "proj");
-  SimpleFS_read(fh, read_buff3, 1100);
-  printf("READ FROM FILE TEMP:\n%s\n", read_buff3);
-  SimpleFS_printFileHandle(fh);
-  //SimpleFS_read(fh, read_buff+40, 50);
-  //printf("READ FROM FILE TEMP:\n%s\n", read_buff);
-  //SimpleFS_printFileHandle(fh);
-  return 1;
-*/
 
 
   // TEST FILE SEEK

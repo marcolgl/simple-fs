@@ -232,6 +232,7 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 	// Save the in memory copy of the directory block, it was only cached til now
 	if (d->current_block != NULL){
 		ret = DiskDriver_writeBlock(d->sfs->disk, d->current_block, d->block_num);
+		ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->dcb->fcb.block_in_disk);
 	}
 	else{
 		ret = DiskDriver_writeBlock(d->sfs->disk, d->dcb, d->block_num);
@@ -244,7 +245,6 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 		FirstDirectoryBlock fdb1;
 		ret = DiskDriver_readBlock(d->sfs->disk, &fdb1, d->dcb->fcb.directory_block);
 		ERROR_HELPER(ret, "Error in read the block, in change dir");
-		
 		// if the parent dir has only 1 block
 		if (fdb1.header.next_block == -1){
 			d->block_num = d->dcb->fcb.directory_block;
@@ -258,7 +258,7 @@ int SimpleFS_changeDir(DirectoryHandle* d, char* dirname){
 			DirectoryBlock* db1 = malloc(sizeof(DirectoryBlock)); 
 			// if parent dir has more than 1 block i search the last one browsing the list
 			while (next_block_to_read != -1){
-				ret = DiskDriver_readBlock(d->sfs->disk, db1, db1->header.next_block);
+				ret = DiskDriver_readBlock(d->sfs->disk, db1, next_block_to_read);
 				ERROR_HELPER(ret, "Error in read the block, in change dir");
 				if (db1->header.next_block != -1) last_block_ind = db1->header.next_block;
 				next_block_to_read = db1->header.next_block;
@@ -323,7 +323,7 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 		ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 		ERROR_HELPER(ret, "Errore in read block\n");
 		read_entries++;
-		if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename)) == 0){
+		if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, max(strlen(ffb1.fcb.name),strlen(filename))) == 0){
 			return file_block;	// file found in directory entries
 		}
 	}
@@ -343,7 +343,7 @@ int SimpleFS_findFileInDir(DirectoryHandle* d, const char* filename){
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs funct findfileindir\n");
 			read_entries++;
-			if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, strlen(filename) == 0))
+			if (ffb1.fcb.is_dir == 0 && memcmp(ffb1.fcb.name, filename, max(strlen(filename), strlen(ffb1.fcb.name))) == 0)
 				return file_block;	// file found in directory entries
 		}
 		next_block = dblock.header.next_block;
@@ -371,7 +371,7 @@ int SimpleFS_findDirInDir(DirectoryHandle* d, const char* dirname){
 		ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 		ERROR_HELPER(ret, "Errore in read block\n");
 		read_entries++;
-		if (ffb1.fcb.is_dir == 1 && memcmp(ffb1.fcb.name, dirname, strlen(dirname)) == 0)
+		if (ffb1.fcb.is_dir == 1 && memcmp(ffb1.fcb.name, dirname, max(strlen(ffb1.fcb.name),strlen(dirname))) == 0)
 			return file_block;	// file found in directory entries
 	}
 
@@ -390,7 +390,7 @@ int SimpleFS_findDirInDir(DirectoryHandle* d, const char* dirname){
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb1, file_block);
 			ERROR_HELPER(ret, "Errore in read block, simplefs find Dir indir\n");
 			read_entries++;
-			if (ffb1.fcb.is_dir == 1 && memcmp(ffb1.fcb.name, dirname, strlen(dirname) == 0))
+			if (ffb1.fcb.is_dir == 1 && memcmp(ffb1.fcb.name, dirname, max(strlen(ffb1.fcb.name), strlen(dirname))) == 0)
 				return file_block;	// file found in directory entries
 		}
 		next_block = dblock.header.next_block;
