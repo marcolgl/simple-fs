@@ -396,6 +396,10 @@ if (test_write_read_seek){
   SimpleFS_seek(fh, 400);
   SimpleFS_read(fh, buffer, 15);
   printf("Read 15 bytes from current position:\n%s-\n\n", buffer);
+  printf("FileHandle after seek and read:");
+  SimpleFS_printFileHandle(fh);
+  printf("Expected pos_in_file: 75");
+  if (fh->pos_in_file == 75) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
   SimpleFS_close(fh);
 }
 /*
