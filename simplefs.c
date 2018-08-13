@@ -923,6 +923,8 @@ void remove_file_from_disk(DiskDriver* disk, int file_block){
 // removes the file in the directory represented by directory handle
 // returns -1 on failure 0 on success
 // if a directory, it removes recursively all contained files
+// AGG: when passing '*' as filename, delete all files (and dirs) in the directory
+// 		i use this to cancel recursively the content of inner directories
 int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	int ret;
 	int read_entries = 0;
@@ -930,12 +932,9 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	FirstFileBlock ffb;
 	DirectoryBlock db;
 	int next_block_to_scan;
-
-	// recursively remove all files
-	if (memcmp(filename, "*", strlen(filename)) == 0){
-		printf("TODO : Remove all files\n");
-	}
-
+	// TO REMOVE WITH *
+	int e_tot = d->dcb->num_entries;
+	//
 
 	// scanning the first directory block
 	while (read_entries < d->dcb->num_entries && read_entries < FDB_DATA){
@@ -943,7 +942,26 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 		ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 		ERROR_HELPER(ret, "Error in read block in file remove\n");
 		
+		// TO REMOVE WITH *
+		if(memcmp(filename, "*",strlen(filename)) == 0){
+			// TO REMOVE DIRECTORY
+			if (ffb.fcb.is_dir == 1){
+				SimpleFS_changeDir(d, ffb.fcb.name);
+				SimpleFS_remove(d, "*");
+				SimpleFS_changeDir(d, "..");
+			}
+			remove_file_from_dir(d, read_entries, 0, file_block);
+			remove_file_from_disk(d->sfs->disk, file_block);
+		}
+		//
+
 		if (memcmp(ffb.fcb.name, filename, max(strlen(filename),strlen(ffb.fcb.name))) == 0){ 	// file found
+			// TO REMOVE DIRECTORY
+			if (ffb.fcb.is_dir == 1){
+				SimpleFS_changeDir(d, filename);
+				SimpleFS_remove(d, "*");
+				SimpleFS_changeDir(d, "..");
+			}
 			remove_file_from_dir(d, read_entries, 0, file_block);
 			remove_file_from_disk(d->sfs->disk, file_block);
 			return 0;
@@ -964,7 +982,26 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 			ERROR_HELPER(ret, "Error in read block scanning a filename in remove\n");
 
+			// TO REMOVE WITH *
+			if(memcmp(filename, "*",strlen(filename)) == 0){
+				// TO REMOVE DIRECTORY
+				if (ffb.fcb.is_dir == 1){
+					SimpleFS_changeDir(d, ffb.fcb.name);
+					SimpleFS_remove(d, "*");
+					SimpleFS_changeDir(d, "..");
+				}
+				remove_file_from_dir(d, read_entries, 0, file_block);
+				remove_file_from_disk(d->sfs->disk, file_block);
+			}
+			//
+
 			if (memcmp(ffb.fcb.name, filename, max(strlen(ffb.fcb.name), strlen(ffb.fcb.name))) == 0){ 	// file found
+				// TO REMOVE DIRECTORY
+				if (ffb.fcb.is_dir == 1){
+					SimpleFS_changeDir(d, filename);
+					SimpleFS_remove(d, "*");
+					SimpleFS_changeDir(d, "..");
+				}	
 				remove_file_from_dir(d, counter_in_block, db.header.block_in_file, file_block);
 				remove_file_from_disk(d->sfs->disk, file_block);
 				return 0;
@@ -974,6 +1011,11 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 		}
 		next_block_to_scan = db.header.next_block;
 	}
+
+	// TO REMOVE WITH *
+	if (memcmp(filename, "*", strlen(filename)) == 0 && read_entries == e_tot)
+		return 0;
+	//
 
 	return -1; 	// file not found
 }

@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
                        "-test_remove"
                       }; 
   if (argc > 10){
-    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
+    printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\nRuns all tests if no argument passed\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
     return -1;
   }
   for (i=1; i< argc; i++){
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
       }
     }
     if (check == 0) {
-      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
+      printf("usage: ./simplefs_test -<test1> -<test2> ... -<testn>\nRuns all tests if no argument passed\ntests available: \n\t-test_init\n\t-test_format\n\t-test_create_file\n\t-test_read_dir\n\t-test_mkdir\n\t-test_find\n\t-test_cd\n\t-test_print_tree\n\t-test_open_close\n\t-test_write_read_seek\n\t-test_remove\n");
       return -1;
     }
   }
@@ -375,5 +375,13 @@ if (test_remove){
   //printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 5));
   //printf("Next_free_block: %d\n", DiskDriver_getFreeBlock(dhandle->sfs->disk, 8)); 
   }
+  
+  // TEST REMOVE WITH *
+  printf(ANSI_COLOR_CYAN "\nREMOVING newdir2 AND RECURSIVELY ALL ITS CONTENT\n" ANSI_COLOR_RESET);
+  SimpleFS_remove(dhandle, "newdir2");
+  printf("\n-After removing 'newdir2' from dir:\n");
+  printTree(dhandle);
+  printf("\nNote: all files and subdirectories from 'newdir2' (and all the blocks they own on disk) are recursively removed.\n");
+
 
 }
