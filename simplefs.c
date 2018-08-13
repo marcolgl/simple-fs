@@ -937,13 +937,14 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	//
 
 	// scanning the first directory block
-	while (read_entries < d->dcb->num_entries && read_entries < FDB_DATA){
+	while (read_entries < e_tot && read_entries < FDB_DATA){
 		file_block = d->dcb->file_blocks[read_entries];
 		ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 		ERROR_HELPER(ret, "Error in read block in file remove\n");
-		
+
 		// TO REMOVE WITH *
 		if(memcmp(filename, "*",strlen(filename)) == 0){
+			printf("Removing filename = %s\n", ffb.fcb.name);
 			// TO REMOVE DIRECTORY
 			if (ffb.fcb.is_dir == 1){
 				SimpleFS_changeDir(d, ffb.fcb.name);
@@ -972,12 +973,12 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 	next_block_to_scan = d->dcb->header.next_block;
 	int counter_in_block;
 	// scanning other blocks (not first one)
-	while (read_entries < d->dcb->num_entries){
+	while (read_entries < e_tot){
 		ret = DiskDriver_readBlock(d->sfs->disk, &db, next_block_to_scan);
 		ERROR_HELPER(ret, "Error in read, in remove scanning not first block\n");
 		counter_in_block = 0;
 		
-		while( counter_in_block < DB_DATA && read_entries < d->dcb->num_entries ){
+		while( counter_in_block < DB_DATA && read_entries < e_tot){
 			file_block = db.file_blocks[counter_in_block];
 			ret = DiskDriver_readBlock(d->sfs->disk, &ffb, file_block);
 			ERROR_HELPER(ret, "Error in read block scanning a filename in remove\n");
@@ -990,7 +991,7 @@ int SimpleFS_remove(DirectoryHandle* d, char* filename){
 					SimpleFS_remove(d, "*");
 					SimpleFS_changeDir(d, "..");
 				}
-				remove_file_from_dir(d, read_entries, 0, file_block);
+				remove_file_from_dir(d, read_entries, db.header.block_in_file, file_block);
 				remove_file_from_disk(d->sfs->disk, file_block);
 			}
 			//

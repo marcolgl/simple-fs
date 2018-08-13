@@ -379,9 +379,16 @@ if (test_remove){
   // TEST REMOVE WITH *
   printf(ANSI_COLOR_CYAN "\nREMOVING newdir2 AND RECURSIVELY ALL ITS CONTENT\n" ANSI_COLOR_RESET);
   SimpleFS_remove(dhandle, "newdir2");
+if (test_remove){
   printf("\n-After removing 'newdir2' from dir:\n");
   printTree(dhandle);
   printf("\nNote: all files and subdirectories from 'newdir2' (and all the blocks they own on disk) are recursively removed.\n");
-
-
+  printf("Check that the blocks of the inner files and dirs are actually removed. They are the blocks 11,12,13.\n");
+  printf("\nFirst free block starting from block 11: %d", DiskDriver_getFreeBlock(&dd, 11));
+  if (DiskDriver_getFreeBlock(&dd, 11) == 11) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
+  printf("First free block starting from block 12: %d", DiskDriver_getFreeBlock(&dd, 12)); 
+  if (DiskDriver_getFreeBlock(&dd, 12) == 12) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
+  printf("First free block starting from block 13: %d", DiskDriver_getFreeBlock(&dd, 13));
+  if (DiskDriver_getFreeBlock(&dd, 13) == 13) printf(ANSI_COLOR_GREEN " ✓\n" ANSI_COLOR_RESET);
+ }
 }
